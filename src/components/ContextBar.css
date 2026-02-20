@@ -1,0 +1,73 @@
+.context-bar {
+  padding: 0.6rem 1rem;
+  background: var(--card-bg, rgba(255, 255, 255, 0.05));
+  border-radius: 10px;
+  margin-bottom: 0.75rem;
+}
+
+.context-bar.warning {
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+
+.context-bar.danger {
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  animation: pulse-context 2s infinite;
+}
+
+@keyframes pulse-context {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.3); }
+  50% { border-color: rgba(239, 68, 68, 0.6); }
+}
+
+.context-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.context-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #a0a0b0);
+}
+
+.context-usage {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.context-detail {
+  font-weight: 400;
+  font-size: 0.68rem;
+  color: var(--text-muted, #6b6b80);
+}
+
+.context-progress {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.context-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+.compact-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.45rem;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  color: #818cf8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.compact-btn:active {
+  background: rgba(99, 102, 241, 0.15);
+}

@@ -6,6 +6,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChatBubble } from '../components/ChatBubble';
 import { ChatInput } from '../components/ChatInput';
+import ContextBar from '../components/ContextBar';
 import { useGatewayContext } from '../contexts/GatewayContext';
 import type { ChatMessage, ToolCall } from '../types/chat';
 import '../styles/pages.css';
@@ -141,6 +142,14 @@ export default function Chat() {
   
   return (
     <div className="page chat-page">
+      {/* 上下文压缩警告 */}
+      <ContextBar
+        tokenUsage={65}
+        tokenCount={650000}
+        maxTokens={1000000}
+        onCompact={() => console.log('Compact session')}
+      />
+
       {/* 页面头部 */}
       <div className="chat-header">
         <div className="chat-header-info">
