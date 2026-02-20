@@ -127,18 +127,52 @@ export default function Connect() {
         {error && (
           <div className="error-message">
             <span className="error-icon">⚠️</span>
-            <span>{error.message}</span>
+            <div className="error-details">
+              <span>{error.message}</span>
+              {error.code === 'TIMEOUT' && (
+                <small className="error-hint">请检查 Gateway 地址是否正确，以及 Gateway 是否正在运行</small>
+              )}
+              {error.code === 'AUTH_FAILED' && (
+                <small className="error-hint">Token 无效或已过期，请重新输入</small>
+              )}
+              {error.code === 'NETWORK_ERROR' && (
+                <small className="error-hint">网络连接失败，请检查你的网络设置或防火墙规则</small>
+              )}
+            </div>
           </div>
         )}
 
         {/* 系统信息（连接成功后显示） */}
         {isConnected && systemInfo && (
-          <div className="success-info">
-            <span className="success-icon">✓</span>
-            <span>
-              Gateway 版本: {systemInfo.version || systemInfo.gateway_version || '未知'}
-            </span>
-          </div>
+          <>
+            <div className="success-info">
+              <span className="success-icon">✓</span>
+              <span>
+                Gateway 版本: {systemInfo.version || systemInfo.gateway_version || '未知'}
+              </span>
+            </div>
+            {/* 版本警告 */}
+            {(() => {
+              const ver = systemInfo.version || systemInfo.gateway_version || '';
+              const clean = ver.replace(/-.*$/, '');
+              const parts = clean.split('.').map(Number);
+              const isOld = parts[0] < 2026 || (parts[0] === 2026 && parts[1] < 2 && (parts[1] < 1 || parts[2] < 30));
+              return isOld ? (
+                <div className="error-message" style={{ borderColor: 'rgba(239, 68, 68, 0.4)' }}>
+                  <span className="error-icon">🚨</span>
+                  <div className="error-details">
+                    <span>你的 Gateway 存在已知安全漏洞 (CVE-2026-25253)</span>
+                    <small className="error-hint">
+                      请升级到 2026.1.30+ 以修补远程代码执行漏洞。
+                      <a href="https://docs.openclaw.ai/changelog" target="_blank" rel="noopener noreferrer" style={{ color: '#818cf8', marginLeft: '4px' }}>
+                        查看升级指南 →
+                      </a>
+                    </small>
+                  </div>
+                </div>
+              ) : null;
+            })()}
+          </>
         )}
 
         {/* 连接表单 */}
