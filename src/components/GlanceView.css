@@ -1,0 +1,210 @@
+/* GlanceView 概览视图组件样式 */
+
+.glance-view {
+  padding: var(--spacing-sm) 0;
+}
+
+.glance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.glance-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.refresh-btn:hover {
+  background: var(--color-accent-muted);
+  color: var(--color-text-primary);
+  border-color: var(--color-accent);
+}
+
+.refresh-btn:active {
+  transform: scale(0.95);
+}
+
+.refresh-btn.refreshing {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 卡片网格 */
+.glance-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+/* 单个卡片 */
+.glance-card {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  text-align: center;
+  transition: all var(--transition-fast);
+}
+
+.glance-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.card-icon {
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-xs);
+}
+
+.card-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-xs);
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.card-label {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 状态颜色 */
+.status-online .card-value {
+  color: var(--color-status-online);
+}
+
+.status-offline .card-value {
+  color: var(--color-status-offline);
+}
+
+.status-busy .card-value {
+  color: var(--color-status-busy);
+}
+
+/* 状态指示点 */
+.status-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: var(--spacing-xs);
+  vertical-align: middle;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.status-online .status-indicator {
+  background-color: var(--color-status-online);
+  box-shadow: 0 0 8px var(--color-status-online);
+}
+
+.status-offline .status-indicator {
+  background-color: var(--color-status-offline);
+  box-shadow: none;
+  animation: none;
+}
+
+.status-busy .status-indicator {
+  background-color: var(--color-status-busy);
+  box-shadow: 0 0 8px var(--color-status-busy);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* 成本卡片 */
+.cost-card .card-value {
+  color: var(--color-accent);
+}
+
+/* 待审批卡片 */
+.approval-card .card-value {
+  color: var(--color-status-busy);
+}
+
+.approval-card.no-pending .card-value {
+  color: var(--color-status-online);
+}
+
+/* 当前任务区域 */
+.current-task {
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+}
+
+.task-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-xs);
+}
+
+.task-description {
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+  line-height: 1.5;
+}
+
+.task-description.idle {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+/* 更新时间 */
+.last-updated {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-align: right;
+  margin-top: var(--spacing-xs);
+}
+
+/* 响应式调整 */
+@media (max-width: 360px) {
+  .glance-cards {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+  
+  .card-value {
+    font-size: 1.5rem;
+  }
+}
+
+@media (min-width: 361px) and (max-width: 480px) {
+  .card-value {
+    font-size: 1.4rem;
+  }
+  
+  .card-label {
+    font-size: 0.7rem;
+  }
+}

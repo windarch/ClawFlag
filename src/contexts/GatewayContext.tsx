@@ -3,7 +3,8 @@
  * 在整个应用中共享 Gateway 连接状态
  */
 
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext } from 'react';
+import type { ReactNode } from 'react';
 import { useGateway } from '../hooks/useGateway';
 import type {
   GatewayConfig,
