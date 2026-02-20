@@ -1,101 +1,53 @@
 # ClawFlag 项目交接文档
-> 更新时间：2026-02-21 04:00 GMT+8
-
----
+> 更新时间：2026-02-21 05:00 GMT+8
 
 ## 🎯 项目概述
+- **GitHub**: https://github.com/windarch/ClawFlag
+- **预览**: https://claw-flag.vercel.app/
+- **本地**: ~/clawd/projects/clawflag
+- **PRD**: ~/clawd/projects/clawflag/PRD.md
 
-**ClawFlag** = 移动端 AI Agent 指挥中心（针对 OpenClaw 用户）
-
-- **PRD 文档**：`~/clawd/projects/clawflag/PRD.md`
-- **GitHub**：https://github.com/windarch/ClawFlag
-- **在线预览**：https://claw-flag.vercel.app/
-- **本地目录**：`~/clawd/projects/clawflag`
-
----
-
-## ✅ 已完成
+## ✅ 已完成 (19 commits, 34 files)
 
 ### 基础设施
-- [x] GitHub 仓库 + Vercel 自动部署
-- [x] Vite + React + TypeScript + PWA 框架
-- [x] 深色主题 (#1a1a2e) + PWA 图标
+- [x] GitHub + Vercel 自动部署
+- [x] Vite + React + TS + PWA + 深色主题
+- [x] PWA 图标 + manifest + Service Worker
 
-### MVP (第1-2周)
-- [x] **路由系统**：四页面 + 底部导航
-- [x] **Gateway 连接模块**：WebSocket + 心跳 + 重连
-- [x] **概览视图**：3秒概览（状态/开销/待审批）
-- [x] **对话功能**：ChatBubble + ChatInput + Markdown
-- [x] **Gateway 安全检查**：版本/暴露/认证/代理检查
-- [x] **今日成本增强**：趋势箭头 + 昨日对比 + 预算进度条
-- [x] **claw-audit CLI**：独立安全审计命令行工具
+### MVP
+- [x] 四页面路由 + 底部导航
+- [x] Gateway WebSocket 连接 + 心跳 + 重连
+- [x] 3秒概览视图 (状态/开销/待审批)
+- [x] 对话功能 (ChatBubble + ChatInput + Markdown)
+- [x] Gateway 安全检查 (版本/暴露/认证)
+- [x] 今日成本 (趋势箭头/昨日对比/预算条)
+- [x] claw-audit CLI 工具
 
-### 增强 (第3-4周)
-- [x] **成本顾问**：2条硬编码规则（模型降级/心跳优化）
-- [x] **SOUL.md 查看/编辑**：L0概览 + L1编辑面板
-- [x] **技能列表**：安全评分环 + 详情展开
-- [x] **会话历史列表**：状态/成本/时间
-- [x] **Agent 统计卡片**：可分享的社交卡片
-- [x] **紧急停止按钮**：两次确认 + 脉冲动画
-- [x] **错误状态处理**：Connect 页面失败路径 + 版本警告
-- [x] **空状态组件**：通用 EmptyState
+### 增强
+- [x] 成本顾问 (2条优化建议)
+- [x] SOUL.md 查看/编辑 (L0-L1分层)
+- [x] 技能列表 + 安全评分
+- [x] 会话历史列表
+- [x] Agent 统计社交卡片 (可分享)
+- [x] 紧急停止按钮 (两次确认)
+- [x] 通知铃铛 (下拉列表)
+- [x] 危险操作批准模态框
+- [x] 上下文压缩警告条
+- [x] 多步骤进度条
+- [x] 执行链路透视 (Show Your Work)
+- [x] 错误状态 + 空状态 + 版本警告
 
----
+## 📋 待完成
+- [ ] **连接真实 Gateway 数据**（替换所有 mock）
+- [ ] **对话真实收发**（WebSocket 消息协议）
+- [ ] **Telegram Bot 推送**
+- [ ] **ClawRouter 模型路由配置 UI**
+- [ ] **成本异常检测**
+- [ ] **记忆时间线浏览器**
+- [ ] **Product Hunt 发布准备**
 
-## 📋 待办
-
-### 完善
-- [ ] 连接 Gateway 真实数据（替换 mock）
-- [ ] 对话功能真实收发
-- [ ] Telegram Bot 推送备用通道
-- [ ] PWA 离线缓存优化
-
-### 第2-3个月 (增长)
-- [ ] ClawRouter 文本配置
-- [ ] 成本异常检测
-- [ ] 技能更新差异对比
-- [ ] 记忆时间线浏览器
-- [ ] OpenRouter API 集成
-- [ ] Product Hunt 发布
-
----
-
-## 📂 项目结构
-
-```
-src/
-├── components/
-│   ├── AgentStatsCard.tsx    # 统计社交卡片
-│   ├── BottomNav.tsx         # 底部导航
-│   ├── ChatBubble.tsx        # 对话气泡
-│   ├── ChatInput.tsx         # 消息输入
-│   ├── CostAdvisor.tsx       # 成本顾问
-│   ├── EmergencyStop.tsx     # 紧急停止按钮
-│   ├── EmptyState.tsx        # 空状态
-│   ├── GlanceView.tsx        # 概览视图
-│   ├── SecurityCheck.tsx     # 安全检查
-│   ├── SessionHistory.tsx    # 会话历史
-│   ├── SkillList.tsx         # 技能列表
-│   └── SoulEditor.tsx        # SOUL.md 编辑器
-├── pages/
-│   ├── Brain.tsx             # 大脑页（SOUL + 技能）
-│   ├── Chat.tsx              # 对话页
-│   ├── Connect.tsx           # 连接页
-│   ├── Pulse.tsx             # 脉搏页（概览 + 安全 + 会话）
-│   └── Router.tsx            # 路由页（成本顾问）
-├── hooks/useGateway.ts       # Gateway WebSocket
-├── contexts/GatewayContext.tsx
-├── types/
-│   ├── chat.ts
-│   ├── gateway.ts
-│   └── security.ts
-├── utils/mockData.ts
-└── styles/
-packages/
-└── claw-audit/               # 独立 CLI 工具
-```
-
-## Git Log
-```bash
-cd ~/clawd/projects/clawflag && git log --oneline -15
-```
+## 📂 组件清单 (19个)
+AgentStatsCard, ApprovalModal, BottomNav, ChatBubble, ChatInput,
+ContextBar, CostAdvisor, EmergencyStop, EmptyState, ExecutionTrace,
+GlanceView, NotificationBell, ProgressSteps, RequireConnection,
+SecurityCheck, SessionHistory, SkillList, SoulEditor, TaskProgress
