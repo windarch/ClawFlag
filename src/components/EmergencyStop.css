@@ -1,0 +1,41 @@
+.emergency-stop-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  z-index: 1000;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  border: 2px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.emergency-stop-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.emergency-stop-btn.confirming {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.7);
+  animation: pulse-red 1s infinite;
+  box-shadow: 0 2px 20px rgba(239, 68, 68, 0.4);
+}
+
+.emergency-stop-btn.stopped {
+  background: rgba(107, 114, 128, 0.15);
+  border-color: rgba(107, 114, 128, 0.3);
+  color: #9ca3af;
+  cursor: default;
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 2px 12px rgba(239, 68, 68, 0.3); }
+  50% { box-shadow: 0 2px 24px rgba(239, 68, 68, 0.6); }
+}

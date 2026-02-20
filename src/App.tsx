@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { GatewayProvider } from './contexts/GatewayContext';
 import { RequireConnection } from './components/RequireConnection';
 import BottomNav from './components/BottomNav';
+import EmergencyStop from './components/EmergencyStop';
 import Connect from './pages/Connect';
 import Chat from './pages/Chat';
 import Pulse from './pages/Pulse';
@@ -30,6 +31,7 @@ export default function App() {
                     <Route path="/router" element={<Router />} />
                   </Routes>
                 </main>
+                <EmergencyStop onStop={() => console.log('Emergency stop triggered')} />
                 <BottomNav />
               </div>
             </RequireConnection>
