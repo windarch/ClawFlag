@@ -188,6 +188,63 @@
 }
 
 /* 响应式调整 */
+/* 成本趋势 */
+.cost-trend {
+  font-size: 0.75em;
+  margin-left: 0.25rem;
+  font-weight: 400;
+}
+
+.trend-up {
+  color: #ef4444;
+}
+
+.trend-down {
+  color: #22c55e;
+}
+
+.trend-flat {
+  color: #a0a0b0;
+}
+
+.cost-compare {
+  font-size: 0.65rem;
+  color: var(--text-muted, #6b6b80);
+}
+
+/* 预算进度条 */
+.budget-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.budget-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: #22c55e;
+  transition: width 0.5s ease;
+}
+
+.budget-fill.budget-warning {
+  background: #eab308;
+}
+
+.budget-fill.budget-danger {
+  background: #ef4444;
+}
+
+.cost-card.budget-warning {
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+.cost-card.budget-danger {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
 @media (max-width: 360px) {
   .glance-cards {
     grid-template-columns: 1fr;

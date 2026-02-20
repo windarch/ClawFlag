@@ -32,6 +32,15 @@ export default function GlanceView({ data, onRefresh }: GlanceViewProps) {
   const statusText = getStatusText(data.agentStatus);
   const isOffline = data.agentStatus === 'offline';
 
+  // 成本趋势
+  const costDiff = data.todayCost - data.yesterdayCost;
+  const costTrendIcon = costDiff > 0 ? '↑' : costDiff < 0 ? '↓' : '→';
+  const costTrendClass = costDiff > 0 ? 'trend-up' : costDiff < 0 ? 'trend-down' : 'trend-flat';
+
+  // 预算进度
+  const budgetPercent = data.dailyBudget > 0 ? (data.todayCost / data.dailyBudget) * 100 : 0;
+  const budgetClass = budgetPercent >= 90 ? 'budget-danger' : budgetPercent >= 70 ? 'budget-warning' : '';
+
   return (
     <div className="glance-view">
       {/* 标题和刷新按钮 */}
@@ -62,10 +71,28 @@ export default function GlanceView({ data, onRefresh }: GlanceViewProps) {
         </div>
 
         {/* 今日开销卡片 */}
-        <div className="glance-card cost-card">
+        <div className={`glance-card cost-card ${budgetClass}`}>
           <div className="card-icon">💰</div>
-          <div className="card-value">{formatCurrency(data.todayCost)}</div>
-          <div className="card-label">今日开销</div>
+          <div className="card-value">
+            {formatCurrency(data.todayCost)}
+            <span className={`cost-trend ${costTrendClass}`}>{costTrendIcon}</span>
+          </div>
+          <div className="card-label">
+            今日开销
+            {data.yesterdayCost > 0 && (
+              <span className="cost-compare">
+                {' '}vs 昨日 {formatCurrency(data.yesterdayCost)}
+              </span>
+            )}
+          </div>
+          {data.dailyBudget > 0 && (
+            <div className="budget-bar">
+              <div
+                className={`budget-fill ${budgetClass}`}
+                style={{ width: `${Math.min(budgetPercent, 100)}%` }}
+              />
+            </div>
+          )}
         </div>
 
         {/* 待审批事项卡片 */}

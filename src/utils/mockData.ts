@@ -11,6 +11,8 @@ export interface GlanceData {
   agentStatus: AgentStatus;
   agentName: string;
   todayCost: number;
+  yesterdayCost: number;
+  dailyBudget: number;
   pendingApprovals: number;
   currentTask: string;
   lastUpdated: Date;
@@ -43,6 +45,8 @@ export const mockGlanceData: GlanceData = {
   agentStatus: 'online',
   agentName: 'Clawd',
   todayCost: 12.58,
+  yesterdayCost: 8.42,
+  dailyBudget: 50,
   pendingApprovals: 3,
   currentTask: '正在分析用户反馈并生成周报摘要...',
   lastUpdated: new Date(),
@@ -53,15 +57,19 @@ export const mockGlanceDataOffline: GlanceData = {
   agentStatus: 'offline',
   agentName: 'Clawd',
   todayCost: 0,
+  yesterdayCost: 5.20,
+  dailyBudget: 50,
   pendingApprovals: 0,
   currentTask: 'Agent 已离线',
-  lastUpdated: new Date(Date.now() - 3600000), // 1小时前
+  lastUpdated: new Date(Date.now() - 3600000),
 };
 
 export const mockGlanceDataBusy: GlanceData = {
   agentStatus: 'busy',
   agentName: 'Clawd',
   todayCost: 45.32,
+  yesterdayCost: 15.80,
+  dailyBudget: 50,
   pendingApprovals: 7,
   currentTask: '正在执行复杂的代码重构任务 (3/5 步骤)...',
   lastUpdated: new Date(),
