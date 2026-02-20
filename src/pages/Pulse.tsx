@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import GlanceView from '../components/GlanceView';
 import SecurityCheck from '../components/SecurityCheck';
+import AgentStatsCard from '../components/AgentStatsCard';
+import type { AgentStats } from '../components/AgentStatsCard';
 import type { SessionData, SecurityAlert, GlanceData } from '../utils/mockData';
 import type { SecurityCheckResult } from '../types/security';
 import {
@@ -32,6 +34,17 @@ export default function Pulse() {
   const [sessions] = useState<SessionData[]>(mockSessions);
   const [alerts] = useState<SecurityAlert[]>(mockSecurityAlerts);
   const [securityResult, setSecurityResult] = useState<SecurityCheckResult>(mockSecurityCheckResult);
+  const [agentStats] = useState<AgentStats>({
+    agentName: '龙虾',
+    agentEmoji: '🦞',
+    periodLabel: '本周统计',
+    tasksCompleted: 47,
+    totalCost: '¥85.20',
+    primaryModel: 'Claude Opus',
+    totalTokens: '1.2M',
+    uptime: '168h',
+    topSkills: ['coding-agent', 'weather', 'brave-search'],
+  });
 
   // 模拟刷新数据
   const handleRefresh = useCallback(async () => {
@@ -111,6 +124,9 @@ export default function Pulse() {
           ))}
         </div>
       </section>
+
+      {/* Agent 统计社交卡片 */}
+      <AgentStatsCard stats={agentStats} />
     </div>
   );
 }
