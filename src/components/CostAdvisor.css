@@ -1,0 +1,107 @@
+.cost-advisor {
+  margin-top: 1rem;
+}
+
+.advisor-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.advisor-icon {
+  font-size: 1.1rem;
+}
+
+.advisor-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary, #e0e0f0);
+}
+
+.advisor-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  font-weight: 500;
+}
+
+.advice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.advice-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg, rgba(255, 255, 255, 0.05));
+  border-radius: 10px;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+.advice-card.applied {
+  opacity: 0.6;
+}
+
+.advice-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.advice-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary, #e0e0f0);
+}
+
+.advice-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #a0a0b0);
+  margin-top: 0.2rem;
+  line-height: 1.4;
+}
+
+.advice-savings {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.savings-icon {
+  font-size: 0.7rem;
+}
+
+.advice-btn {
+  flex-shrink: 0;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.1);
+  color: #818cf8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.advice-btn:active:not(:disabled) {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.advice-btn.btn-applied {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+  cursor: default;
+}
