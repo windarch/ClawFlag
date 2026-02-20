@@ -1,0 +1,111 @@
+.execution-trace {
+  margin: 0.25rem 0;
+}
+
+.trace-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: 8px;
+  color: #818cf8;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.trace-toggle:active {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.trace-summary {
+  flex: 1;
+  text-align: right;
+  color: var(--text-muted, #6b6b80);
+  font-weight: 400;
+}
+
+.trace-arrow {
+  font-size: 0.6rem;
+  color: var(--text-muted, #6b6b80);
+}
+
+.trace-timeline {
+  margin-top: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.trace-step {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.trace-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 12px;
+  flex-shrink: 0;
+}
+
+.trace-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.trace-line {
+  width: 1px;
+  flex: 1;
+  min-height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 2px 0;
+}
+
+.trace-content {
+  flex: 1;
+  padding-bottom: 0.5rem;
+  min-width: 0;
+}
+
+.trace-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.trace-icon {
+  font-size: 0.75rem;
+}
+
+.trace-label {
+  font-size: 0.75rem;
+  color: var(--text-primary, #e0e0f0);
+  font-weight: 500;
+}
+
+.trace-duration {
+  font-size: 0.6rem;
+  color: var(--text-muted, #6b6b80);
+  margin-left: auto;
+}
+
+.trace-detail {
+  margin-top: 0.3rem;
+  padding: 0.4rem 0.5rem;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  font-size: 0.65rem;
+  color: var(--text-secondary, #a0a0b0);
+  font-family: 'SF Mono', monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 100px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
