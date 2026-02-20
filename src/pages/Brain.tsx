@@ -1,5 +1,46 @@
 import SoulEditor from '../components/SoulEditor';
+import SkillList from '../components/SkillList';
+import type { SkillInfo } from '../components/SkillList';
 import '../styles/pages.css';
+
+const mockSkills: SkillInfo[] = [
+  {
+    id: 'weather',
+    name: 'weather',
+    description: '天气查询 (wttr.in / Open-Meteo)',
+    version: '1.0.2',
+    safetyScore: 95,
+    source: 'clawhub',
+    lastUpdated: new Date(Date.now() - 86400000 * 3),
+  },
+  {
+    id: 'coding-agent',
+    name: 'coding-agent',
+    description: '委派编码任务给 Codex/Claude Code',
+    version: '2.1.0',
+    safetyScore: 88,
+    source: 'clawhub',
+    lastUpdated: new Date(Date.now() - 86400000 * 7),
+  },
+  {
+    id: 'brave-search',
+    name: 'brave-search',
+    description: 'Brave Search 网页搜索',
+    version: '1.0.0',
+    safetyScore: 72,
+    source: 'local',
+    lastUpdated: new Date(Date.now() - 86400000 * 14),
+  },
+  {
+    id: 'windows-control',
+    name: 'windows-control',
+    description: 'Windows 远程控制',
+    version: '0.3.1',
+    safetyScore: 45,
+    source: 'local',
+    lastUpdated: new Date(Date.now() - 86400000 * 2),
+  },
+];
 
 // 模拟 SOUL.md 内容
 const mockSoulContent = `# SOUL.md - Who You Are
@@ -36,6 +77,9 @@ export default function Brain() {
           // TODO: 通过 Gateway 保存
         }}
       />
+
+      {/* 技能列表 */}
+      <SkillList skills={mockSkills} />
 
       {/* 记忆浏览器占位 */}
       <section style={{ marginTop: '1rem' }}>

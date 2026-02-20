@@ -1,0 +1,123 @@
+.skill-list {
+  margin-top: 1rem;
+}
+
+.skill-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.skill-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.skill-header-icon {
+  font-size: 1.1rem;
+}
+
+.skill-header-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary, #e0e0f0);
+}
+
+.skill-count {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary, #a0a0b0);
+}
+
+.skill-avg-score {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.skills {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skill-card {
+  background: var(--card-bg, rgba(255, 255, 255, 0.05));
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.skill-card:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.skill-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.skill-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.skill-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary, #e0e0f0);
+}
+
+.skill-desc {
+  font-size: 0.73rem;
+  color: var(--text-secondary, #a0a0b0);
+  margin-top: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.skill-score-ring {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.skill-score-ring span {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.skill-detail {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.detail-label {
+  color: var(--text-secondary, #a0a0b0);
+}
+
+.detail-value {
+  color: var(--text-primary, #e0e0f0);
+  font-weight: 500;
+}
