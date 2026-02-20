@@ -1,0 +1,22 @@
+/* 页面特定样式 */
+
+/* 对话页面 */
+.chat-page {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 脉搏页面 */
+.pulse-page {
+  
+}
+
+/* 大脑页面 */
+.brain-page {
+  
+}
+
+/* 路由页面 */
+.router-page {
+  
+}

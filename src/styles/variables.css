@@ -1,0 +1,45 @@
+/* ClawFlag 主题变量 */
+:root {
+  /* 主色调 */
+  --color-bg-primary: #1a1a2e;
+  --color-bg-secondary: #16213e;
+  --color-bg-tertiary: #0f3460;
+  
+  /* 强调色 */
+  --color-accent: #e94560;
+  --color-accent-hover: #ff6b6b;
+  --color-accent-muted: rgba(233, 69, 96, 0.2);
+  
+  /* 文字颜色 */
+  --color-text-primary: #eaeaea;
+  --color-text-secondary: #a0a0a0;
+  --color-text-muted: #6a6a6a;
+  
+  /* 边框和分隔线 */
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-divider: rgba(255, 255, 255, 0.05);
+  
+  /* 底部导航栏 */
+  --nav-height: 60px;
+  --nav-bg: rgba(22, 33, 62, 0.95);
+  --nav-border: rgba(255, 255, 255, 0.1);
+  
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  
+  /* 间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* 过渡 */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  
+  /* 安全区域 */
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
