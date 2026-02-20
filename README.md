@@ -1,112 +1,88 @@
-# ClawFlag 🚩
+# 🚩 ClawFlag
 
 **洞察你的 AI，掌控于指尖。**
 
-ClawFlag 是一个移动端 AI Agent 指挥中心，让 OpenClaw 用户能在 **3秒** 内通过移动设备看到 Agent 状态、开销和风险，并在 **30秒** 内完成任何控制操作。
+移动端 AI Agent 指挥中心 — 为 [OpenClaw](https://github.com/openclaw/openclaw) 用户打造。
 
-## 🎯 核心理念
+[![Deploy](https://img.shields.io/badge/demo-live-brightgreen)](https://claw-flag.vercel.app/)
+[![GitHub](https://img.shields.io/github/stars/windarch/ClawFlag?style=social)](https://github.com/windarch/ClawFlag)
 
-- **AI 安全需要"人类在环"** - 最危险的 AI 是无人监管的 AI
-- **"人类在环"需要便利性** - 控制面板必须触手可及
-- **AI 服务于人** - 人类是委托人，Agent 在边界内行事
+## 🎯 核心功能
 
-## ✨ 核心功能
+- **3秒概览** — Agent 状态、今日开销、待审批事项，一目了然
+- **Gateway 安全检查** — 版本漏洞、网络暴露、认证状态自动检测
+- **对话交互** — 与 Agent 对话，Markdown 渲染，工具调用卡片
+- **成本顾问** — 智能优化建议，一键节省开销
+- **技能管理** — 已安装技能列表，安全评分
+- **SOUL.md 编辑** — 分层配置，L0 概览到 L1 编辑
+- **紧急停止** — 两次确认，一键拉闸
+- **统计卡片** — 可分享的 Agent 周报卡片
 
-### 概览视图 (3秒了解全局)
-- Agent 状态 / 今日开销 / 待审批事项
-- 一句话描述当前任务
+## 🛡️ 安全
 
-### 对话体验
-- 超越 Telegram 的富媒体对话
-- 工具调用内联卡片
-- 单条消息成本标签
-- 危险操作内联批准
-
-### 成本控制
-- 三层熔断器 (警告/降级/熔断)
-- ClawRouter 可视化模型路由
-- 成本顾问优化建议
-
-### 安全审计
-- Gateway 安全检查
-- 技能护盾 (Skill Shield)
-- 实时入侵检测
-
-### 记忆智能
-- 记忆保真度可视化
-- 预压缩摘要
-- 语义搜索
-
-## 🛠️ 技术栈
-
-- **框架**: React + TypeScript + Vite
-- **PWA**: vite-plugin-pwa
-- **路由**: react-router-dom
-- **通信**: WebSocket (Gateway WS)
-- **存储**: 本地加密缓存
-
-## 📁 项目结构
-
-```
-src/
-├── components/     # 可复用 UI 组件
-├── pages/          # 页面组件
-│   ├── Chat/       # 对话页
-│   ├── Pulse/      # 脉搏页 (监控仪表盘)
-│   ├── Brain/      # 大脑页 (记忆 & 配置)
-│   └── Router/     # 路由页 (模型路由)
-├── hooks/          # 自定义 React Hooks
-├── utils/          # 工具函数
-├── styles/         # 全局样式
-└── ...
-```
+- **零云存储** — 所有数据留在你的 Gateway 上
+- **零中继** — App 直连 Gateway，不经过第三方
+- **安全审计** — 内置 CVE 检查 + 独立 CLI 工具
 
 ## 🚀 快速开始
 
+### 在线体验
+打开 [claw-flag.vercel.app](https://claw-flag.vercel.app/) → 输入 Gateway 地址 → 粘贴 Token → 完成
+
+### 本地开发
 ```bash
-# 安装依赖
+git clone https://github.com/windarch/ClawFlag.git
+cd ClawFlag
 npm install
-
-# 启动开发服务器
 npm run dev
-
-# 构建生产版本
-npm run build
-
-# 预览构建结果
-npm run preview
 ```
 
-## 📱 PWA 支持
+### 安全审计 CLI
+```bash
+npx claw-audit ws://localhost:18789 --token YOUR_TOKEN
+```
 
-ClawFlag 是一个 PWA (Progressive Web App)，支持：
-- 添加到主屏幕
-- 离线访问
-- 推送通知 (通过 Telegram Bot 备用)
+## 🏗️ 技术栈
 
-## 🗺️ 路线图
+| 类别 | 技术 |
+|------|------|
+| 框架 | React + TypeScript + Vite |
+| PWA | vite-plugin-pwa + Workbox |
+| 通信 | WebSocket |
+| 部署 | Vercel |
+| 主题 | 深色 (#1a1a2e) |
 
-### MVP (第1-2周)
-- [ ] Gateway 连接
-- [ ] 概览视图
-- [ ] 基础对话
-- [ ] 安全检查
+## 📂 项目结构
 
-### 增强 (第3-4周)
-- [ ] 成本顾问
-- [ ] SOUL.md 编辑
-- [ ] 技能列表
+```
+src/
+├── components/    # UI 组件 (GlanceView, SecurityCheck, CostAdvisor...)
+├── pages/         # 页面 (Chat, Pulse, Brain, Router, Connect)
+├── hooks/         # Gateway WebSocket hook
+├── contexts/      # 全局状态
+├── types/         # TypeScript 类型
+└── styles/        # 全局样式
+packages/
+└── claw-audit/    # 独立安全审计 CLI
+```
+
+## 📋 路线图
+
+- [x] PWA 框架 + 四页面路由
+- [x] Gateway WebSocket 连接
+- [x] 3秒概览 + 安全检查
+- [x] 对话功能 + 成本顾问
+- [x] 技能列表 + SOUL 编辑
+- [ ] 真实 Gateway 数据接入
+- [ ] ClawRouter 模型路由
+- [ ] 记忆时间线浏览器
 - [ ] Telegram Bot 推送
+- [ ] Product Hunt 发布
 
-### 增长 (第2-3个月)
-- [ ] ClawRouter 配置
-- [ ] 记忆浏览器
-- [ ] OpenRouter 集成
-
-## 📄 License
+## 📄 许可证
 
 MIT
 
 ---
 
-> *AI 安全需要人类在环。人类在环需要移动便利性。AI 的存在是为了服务于人。*
+> AI 安全需要人类在环。人类在环需要移动便利性。
