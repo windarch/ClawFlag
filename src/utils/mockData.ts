@@ -126,6 +126,78 @@ export const mockSecurityAlerts: SecurityAlert[] = [
 // 无警告时的空数组
 export const mockNoAlerts: SecurityAlert[] = [];
 
+// 安全检查结果类型（从 security.ts 复用）
+import type { SecurityCheckResult } from '../types/security';
+
+// 模拟安全检查结果
+export const mockSecurityCheckResult: SecurityCheckResult = {
+  timestamp: new Date(),
+  items: [
+    {
+      id: 'version-check',
+      title: 'Gateway 版本',
+      description: '当前版本 2026.1.28，低于安全基线 2026.1.30',
+      level: 'critical',
+      fix: '升级 Gateway 到 2026.1.30+ 以修补 CVE-2026-25253（远程代码执行漏洞）和 CVE-2026-24763。',
+      fixUrl: 'https://docs.openclaw.ai/changelog',
+    },
+    {
+      id: 'exposure-check',
+      title: '网络暴露',
+      description: 'Gateway 绑定到 loopback (127.0.0.1)，仅本地可访问',
+      level: 'pass',
+    },
+    {
+      id: 'auth-check',
+      title: '认证状态',
+      description: '已启用 Token 认证',
+      level: 'pass',
+    },
+    {
+      id: 'proxy-check',
+      title: '可信代理',
+      description: '未配置 trustedProxies，如果通过反向代理访问，可能有安全隐患',
+      level: 'warning',
+      fix: '如果你使用 Nginx/Caddy 等反向代理，请在 openclaw.json 中配置 trustedProxies 以确保正确验证来源 IP。',
+    },
+  ],
+  summary: {
+    pass: 2,
+    warning: 1,
+    critical: 1,
+  },
+};
+
+// 全部通过的安全检查（用于测试）
+export const mockSecurityCheckAllPass: SecurityCheckResult = {
+  timestamp: new Date(),
+  items: [
+    {
+      id: 'version-check',
+      title: 'Gateway 版本',
+      description: '版本 2026.2.19，已是最新',
+      level: 'pass',
+    },
+    {
+      id: 'exposure-check',
+      title: '网络暴露',
+      description: 'Gateway 绑定到 loopback，仅本地可访问',
+      level: 'pass',
+    },
+    {
+      id: 'auth-check',
+      title: '认证状态',
+      description: '已启用 Token 认证',
+      level: 'pass',
+    },
+  ],
+  summary: {
+    pass: 3,
+    warning: 0,
+    critical: 0,
+  },
+};
+
 // 获取状态显示文本
 export function getStatusText(status: AgentStatus): string {
   const statusMap: Record<AgentStatus, string> = {

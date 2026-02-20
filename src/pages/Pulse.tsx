@@ -1,10 +1,13 @@
 import { useState, useCallback } from 'react';
 import GlanceView from '../components/GlanceView';
+import SecurityCheck from '../components/SecurityCheck';
 import type { SessionData, SecurityAlert, GlanceData } from '../utils/mockData';
+import type { SecurityCheckResult } from '../types/security';
 import {
   mockGlanceData,
   mockSessions,
   mockSecurityAlerts,
+  mockSecurityCheckResult,
   formatCurrency,
   formatRelativeTime,
 } from '../utils/mockData';
@@ -28,6 +31,7 @@ export default function Pulse() {
   const [glanceData, setGlanceData] = useState<GlanceData>(mockGlanceData);
   const [sessions] = useState<SessionData[]>(mockSessions);
   const [alerts] = useState<SecurityAlert[]>(mockSecurityAlerts);
+  const [securityResult, setSecurityResult] = useState<SecurityCheckResult>(mockSecurityCheckResult);
 
   // 模拟刷新数据
   const handleRefresh = useCallback(async () => {
@@ -69,6 +73,15 @@ export default function Pulse() {
 
       {/* 概览视图组件 */}
       <GlanceView data={glanceData} onRefresh={handleRefresh} />
+
+      {/* Gateway 安全检查 */}
+      <SecurityCheck
+        result={securityResult}
+        onRecheck={() => {
+          // 模拟重新检查
+          setSecurityResult(prev => ({ ...prev, timestamp: new Date() }));
+        }}
+      />
 
       {/* 会话列表 */}
       <section className="sessions-section">
