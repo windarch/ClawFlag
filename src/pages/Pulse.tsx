@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import GlanceView from '../components/GlanceView';
 import SecurityCheck from '../components/SecurityCheck';
 import AgentStatsCard from '../components/AgentStatsCard';
+import WeeklyDigest from '../components/WeeklyDigest';
 import type { AgentStats } from '../components/AgentStatsCard';
 import type { SecurityCheckResult } from '../types/security';
 import { useSessions, useCostData, useCronJobs } from '../hooks/useGatewayData';
@@ -262,6 +263,9 @@ export default function Pulse() {
 
       {/* 定时任务 */}
       <CronJobPanel jobs={jobs} onToggle={toggleJob} onRun={runJob} />
+
+      {/* 每周文摘 */}
+      <WeeklyDigest />
 
       {/* Agent 统计社交卡片 */}
       <AgentStatsCard stats={agentStats} />

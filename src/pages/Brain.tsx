@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import SoulEditor from '../components/SoulEditor';
 import SkillList from '../components/SkillList';
 import type { SkillInfo } from '../components/SkillList';
+import SkillShield from '../components/SkillShield';
 import { useMemoryData } from '../hooks/useGatewayData';
 import type { MemoryEntry } from '../hooks/useGatewayData';
 import '../styles/pages.css';
@@ -211,6 +212,8 @@ export default function Brain() {
       />
 
       <SkillList skills={mockSkills} />
+
+      <SkillShield />
     </div>
   );
 }
