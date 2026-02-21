@@ -584,29 +584,32 @@ export function useChat(sessionKey: string) {
       const msg = ev.message as Record<string, unknown> | undefined;
 
       if (state === 'delta' && msg) {
-        // Streaming delta - update or create assistant message
+        // Streaming delta - content is cumulative (full text so far), not incremental
+        const fullText = extractContent(msg.content || msg.text || '');
         setMessages(prev => {
           const existing = prev.find(m => m.id === ev.runId);
           if (existing) {
             return prev.map(m => m.id === ev.runId ? {
               ...m,
-              content: m.content + extractContent(msg.text || msg.content || ''),
+              content: fullText,
               isStreaming: true,
             } : m);
           }
           return [...prev, {
             id: String(ev.runId),
             role: 'assistant' as const,
-            content: extractContent(msg.text || msg.content || ''),
+            content: fullText,
             timestamp: new Date(),
             isStreaming: true,
           }];
         });
       } else if (state === 'final') {
-        // Final message
+        // Final message - update content with final text and clear streaming
         const usage = ev.usage as Record<string, number> | undefined;
+        const finalText = msg ? extractContent(msg.content || msg.text || '') : undefined;
         setMessages(prev => prev.map(m => m.id === ev.runId ? {
           ...m,
+          ...(finalText ? { content: finalText } : {}),
           isStreaming: false,
           tokens: usage ? { input: usage.inputTokens || 0, output: usage.outputTokens || 0 } : undefined,
         } : m));

@@ -298,7 +298,14 @@ export class GatewayClient {
   // ========== Config Methods ==========
 
   async configGet() {
-    return this.request<{ config: Record<string, unknown>; hash?: string }>('config.get', {});
+    const result = await this.request<{ path: string; exists: boolean; raw: string }>('config.get', {});
+    // Gateway returns {path, exists, raw} where raw is JSON string
+    try {
+      const config = result.raw ? JSON.parse(result.raw) : {};
+      return { config, path: result.path, exists: result.exists };
+    } catch {
+      return { config: {} as Record<string, unknown>, path: result.path, exists: result.exists };
+    }
   }
 
   async configSet(config: Record<string, unknown>, baseHash?: string) {
