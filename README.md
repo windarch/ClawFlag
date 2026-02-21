@@ -1,43 +1,56 @@
-# 🚩 ClawFlag
+# 🚩 ClawFlag v5
 
 **洞察你的 AI，掌控于指尖。**
 
-移动端 AI Agent 指挥中心 — OpenClaw Gateway 的移动控制面板。
+移动端 AI Agent 指挥中心 — 通过 E2EE Relay 安全连接 OpenClaw Agent。
 
 ## 预览
 
 🔗 [claw-flag.vercel.app](https://claw-flag.vercel.app/)
 
+## V5 新架构
+
+```
+┌─────────┐     E2EE      ┌──────────────┐     E2EE      ┌──────────┐
+│ ClawFlag │◄────────────►│ Relay Server │◄────────────►│  Agent   │
+│   App    │  AES-256-GCM │  (盲管道)     │  AES-256-GCM │(clawflag │
+│  (PWA)   │              │              │              │ -agent)  │
+└─────────┘               └──────────────┘               └──────────┘
+     配对码连接                 零知识转发                  桥接 OpenClaw
+```
+
+- **无需暴露 Gateway IP** — 通过 6 位配对码连接
+- **端到端加密** — ECDH 密钥交换 + AES-256-GCM
+- **盲管道** — Relay Server 只转发加密数据，零知识
+
 ## 功能
 
 ### 💬 对话 (Chat)
-- 与 AI Agent 实时对话，支持流式响应
-- 工具调用内联卡片 + 详情模态框
-- 折叠长代码块、文件差异高亮
-- 单条消息成本标签
-- 内联危险操作批准按钮
+- 实时流式对话 + Markdown 渲染
+- 工具调用卡片 + 代码折叠
+- 危险操作内联批准按钮
 - 上下文压缩警告 + 一键压缩
 - 紧急停止浮动按钮
+- 单条消息成本标签
 
 ### 📊 脉搏 (Pulse)
 - **3秒概览**: Agent 状态 / 今日开销 / 待审批
-- 会话列表 + context 使用进度条
-- Cron 定时任务管理（启用/禁用/手动触发）
-- Gateway 安全审计（版本/认证/网络暴露/TLS）
-- Agent 统计社交卡片 (Web Share API)
+- 任务 DAG 可视化
+- Cron 任务管理
+- Gateway 安全审计横幅
+- Context 使用进度条
 
 ### 🧠 大脑 (Brain)
-- 记忆浏览器：时间线 + 语义搜索 + 保真度环
-- SOUL.md 查看/编辑器
+- 记忆浏览器：时间线 + 语义搜索
+- SOUL.md 编辑器
 - 分层配置编辑器 (L0-L3)
 - 技能列表 + 安全评分
 
 ### ⚡ 路由 (Router)
-- 模型路由表 + 备用链
-- 成本顾问（可操作的优化建议 + 一键应用）
-- 成本分布图 + 24小时趋势
+- 路由规则编辑器 + Fallback chain
+- 成本顾问 + 一键优化
 - 三层成本熔断器（警告/降级/熔断）
-- 预算设置 + 进度条
+- 预算管理 + 趋势图
 
 ## 技术栈
 
@@ -47,64 +60,34 @@
 | 构建 | Vite 7 |
 | 路由 | React Router 7 |
 | PWA | vite-plugin-pwa |
-| 样式 | CSS Variables + 暗色主题 |
-| 协议 | OpenClaw Gateway WebSocket Protocol v3 |
-| 部署 | Vercel (自动) |
-
-## 架构
-
-```
-src/
-├── services/gatewayClient.ts   # Gateway WS 协议 v3 客户端
-├── contexts/
-│   ├── GatewayContext.tsx       # 连接状态管理
-│   └── AppContext.tsx           # 全局状态（通知/审批）
-├── hooks/useGatewayData.ts     # 业务数据 hooks（真实API + mock fallback）
-├── pages/                      # 5个页面
-│   ├── Connect.tsx             # Gateway 连接配置
-│   ├── Chat.tsx                # 对话界面
-│   ├── Pulse.tsx               # 概览与监控
-│   ├── Brain.tsx               # 记忆与配置
-│   └── Router.tsx              # 模型路由与成本
-├── components/                 # 30+ 组件
-└── styles/                     # 全局样式 + CSS 变量
-```
+| 加密 | Web Crypto API (ECDH + AES-256-GCM) |
+| 部署 | Vercel + nginx |
 
 ## 快速开始
 
 ```bash
-# 安装依赖
 npm install
-
-# 开发
-npm run dev
-
-# 构建
-npm run build
-
-# 预览
-npm run preview
+npm run dev      # 开发
+npm run build    # 构建
+npm run preview  # 预览
 ```
 
-## 连接 Gateway
+### 连接方式
 
-1. 启动 OpenClaw Gateway: `openclaw gateway`
-2. 打开 ClawFlag (本地或 Vercel)
-3. 输入 Gateway 地址和 Token
-4. 开始使用
+**V5 (推荐):** 配对码连接
+1. 在目标机器安装 `clawflag-agent`
+2. App 生成配对码 → Agent 输入配对码
+3. 自动建立 E2EE 连接
 
-## 数据安全
+**V4 (高级):** 直连 Gateway
+1. 输入 Gateway 地址和 Token
+2. 直接 WebSocket 连接
 
-- **零云存储**: 所有数据留在你的 Gateway，ClawFlag 不存储任何用户数据
-- **本地缓存**: 连接配置存储在浏览器 localStorage
-- **协议安全**: 支持 WSS (TLS) + Token 认证
+## 安全
 
-## 开发状态
-
-- ✅ Phase 1-3: 前端 UI (30+ 组件, 5 页面)
-- ✅ Phase 4: Gateway WS 协议 v3 集成
-- ✅ 移动端 UX + PWA
-- 🔄 E2E 测试 (真实 Gateway 连接验证)
+- **E2EE**: 端到端加密，Relay 零知识
+- **零云存储**: 所有数据留在本地
+- **Ed25519**: 设备认证签名
 
 ## License
 
