@@ -57,15 +57,15 @@ export class RelayClient extends EventEmitter {
     switch (msg.type) {
       case 'pair-ack':
         this.emit('pair-ack', msg.payload);
-        // Send our public key for key exchange
-        this.send({
-          type: 'key-exchange',
-          payload: { publicKey: this.crypto.publicKeyBase64 },
-        });
         break;
 
       case 'pair-complete':
         this.emit('pair-complete');
+        // Send our public key for key exchange (both sides connected now)
+        this.send({
+          type: 'key-exchange',
+          payload: { publicKey: this.crypto.publicKeyBase64 },
+        });
         break;
 
       case 'key-exchange':
