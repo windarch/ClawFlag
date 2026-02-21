@@ -22,7 +22,6 @@ export default function Chat() {
   const { messages, sending, send, abort, summarize, loading } = useChat(activeSession);
 
   const [showToolCall, setShowToolCall] = useState<{ name: string; input: string; output?: string; duration?: number } | null>(null);
-  const [longPressTimer, setLongPressTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom on new messages
@@ -35,23 +34,6 @@ export default function Chat() {
     if (!text.trim() || !connected) return;
     send(text);
   }, [send, connected]);
-
-  // Handle long press for summarize
-  const handleInputLongPressStart = useCallback(() => {
-    const timer = setTimeout(() => {
-      if (confirm('总结此会话？')) {
-        summarize();
-      }
-    }, 800);
-    setLongPressTimer(timer);
-  }, [summarize]);
-
-  const handleInputLongPressEnd = useCallback(() => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-  }, [longPressTimer]);
 
   // Token usage from active session
   const activeSessionInfo = sessions.find(s => s.key === activeSession || s.label === activeSession);
@@ -67,8 +49,10 @@ export default function Chat() {
         tokenUsage={tokenUsage}
         tokenCount={activeSessionInfo ? activeSessionInfo.inputTokens + activeSessionInfo.outputTokens : undefined}
         maxTokens={200000}
-        onCompact={() => {
-          // Would call sessions.compact
+        onCompact={async () => {
+          if (client?.connected) {
+            await client.sessionsCompact(activeSession);
+          }
         }}
       />
 
@@ -149,23 +133,18 @@ export default function Chat() {
       </div>
 
       {/* Input Area */}
-      <div
-        className="chat-input-area"
-        onTouchStart={handleInputLongPressStart}
-        onTouchEnd={handleInputLongPressEnd}
-        onMouseDown={handleInputLongPressStart}
-        onMouseUp={handleInputLongPressEnd}
-      >
+      <div className="chat-input-area">
         {sending && (
           <button className="btn btn-stop" onClick={abort} title="停止生成">
             ⏹ 停止
           </button>
         )}
+        <SummarizeButton onSummarize={summarize} disabled={!connected || sending} />
         <ChatInput
           onSend={handleSend}
           disabled={!connected || sending}
           isLoading={sending}
-          placeholder={connected ? '输入消息... (长按可总结)' : '连接 Gateway 后可发送消息'}
+          placeholder={connected ? '输入消息...' : '连接 Gateway 后可发送消息'}
         />
       </div>
 
