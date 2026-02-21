@@ -11,11 +11,10 @@ interface RequireConnectionProps {
 }
 
 export function RequireConnection({ children }: RequireConnectionProps) {
-  const { isConnected, status } = useGatewayContext();
+  const { connected, connecting } = useGatewayContext();
   const location = useLocation();
 
-  // 如果正在连接中，显示加载状态
-  if (status === 'connecting') {
+  if (connecting) {
     return (
       <div className="loading-screen">
         <div className="loading-spinner"></div>
@@ -24,8 +23,7 @@ export function RequireConnection({ children }: RequireConnectionProps) {
     );
   }
 
-  // 如果未连接，重定向到连接页面
-  if (!isConnected) {
+  if (!connected) {
     return <Navigate to="/connect" state={{ from: location }} replace />;
   }
 

@@ -1,329 +1,285 @@
 /**
  * Gateway 连接配置页面
- * 允许用户输入 Gateway 地址和 Token 进行连接
+ * 输入 Gateway 地址和 Token 进行连接
+ * 包含故障排除指南和连接历史
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useGateway } from '../hooks/useGateway';
-import type { GatewayConfig, GatewayStatus } from '../types/gateway';
-import './Connect.css';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useGatewayContext, type GatewayConfig } from '../contexts/GatewayContext';
+import '../styles/pages.css';
 
-// 默认端口
 const DEFAULT_PORT = 18789;
 
-// 状态显示配置
-const STATUS_CONFIG: Record<GatewayStatus, { text: string; color: string; icon: string }> = {
-  disconnected: { text: '未连接', color: '#6b7280', icon: '○' },
-  connecting: { text: '连接中...', color: '#f59e0b', icon: '◐' },
-  connected: { text: '已连接', color: '#10b981', icon: '●' },
-  error: { text: '连接错误', color: '#ef4444', icon: '✕' },
-};
+// 故障排除步骤
+const TROUBLESHOOT_STEPS = [
+  { title: '检查 Gateway 是否运行', desc: '运行 `openclaw gateway status` 确认 Gateway 已启动', icon: '🔍' },
+  { title: '确认网络可达', desc: '确保设备与 Gateway 在同一网络，或通过 Tailscale 连接', icon: '🌐' },
+  { title: '检查端口', desc: `默认端口 ${DEFAULT_PORT}，确认防火墙已放行`, icon: '🔌' },
+  { title: '验证 Token', desc: '在 Gateway 配置中查看 auth.token 设置', icon: '🔑' },
+  { title: '使用 HTTPS', desc: '远程访问建议使用 Tailscale Serve 或反向代理提供 TLS', icon: '🔒' },
+];
 
-function TroubleshootingGuide({ errorCode }: { errorCode: string }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const tips: Record<string, { title: string; steps: string[] }> = {
-    TIMEOUT: {
-      title: '连接超时',
-      steps: [
-        '确认 Gateway 正在运行：ssh 到服务器执行 openclaw status',
-        '检查 IP 和端口是否正确（默认端口 18789）',
-        '如果 Gateway 在远程服务器上，检查防火墙是否放行该端口',
-        '使用 Tailscale/WireGuard 等内网穿透工具时，确认隧道已连接',
-        '尝试在浏览器中访问 http://host:18789 确认 Gateway 可达',
-      ],
-    },
-    AUTH_FAILED: {
-      title: 'Token 无效',
-      steps: [
-        '在服务器上查看 Token：cat ~/.openclaw/openclaw.json | grep token',
-        '确保复制了完整的 Token（包含所有字符）',
-        '如果最近重装了 Gateway，Token 可能已更新',
-        '检查 Token 前后是否有多余的空格',
-      ],
-    },
-    NETWORK_ERROR: {
-      title: '网络错误',
-      steps: [
-        '检查手机/电脑的网络连接',
-        '如果 Gateway 在局域网内，确保你在同一网络下',
-        '确认没有使用代理/VPN 阻断了连接',
-        '尝试使用 WSS（启用安全连接）',
-      ],
-    },
-  };
-
-  const guide = tips[errorCode] || tips['NETWORK_ERROR'];
-
-  return (
-    <div style={{ marginTop: '0.75rem' }}>
-      <button
-        onClick={() => setExpanded(!expanded)}
-        style={{
-          background: 'none', border: 'none', color: 'var(--color-accent, #e94560)',
-          fontSize: '0.8rem', cursor: 'pointer', padding: 0, textDecoration: 'underline',
-        }}
-      >
-        {expanded ? '▼' : '▶'} 故障排除指南：{guide.title}
-      </button>
-      {expanded && (
-        <div style={{
-          marginTop: '0.5rem', padding: '0.75rem', borderRadius: 8,
-          background: 'rgba(255,255,255,0.03)', border: '1px solid var(--color-border, rgba(255,255,255,0.1))',
-        }}>
-          <ol style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8rem', color: 'var(--color-text-secondary, #a0a0a0)' }}>
-            {guide.steps.map((step, i) => (
-              <li key={i} style={{ marginBottom: '0.4rem', lineHeight: 1.5 }}>{step}</li>
-            ))}
-          </ol>
-        </div>
-      )}
-    </div>
-  );
-}
+// CVE 警告信息
+const KNOWN_CVES = [
+  { id: 'CVE-2026-25253', minVersion: '2026.1.30', desc: '跨站 WebSocket 劫持 (CSWSH)' },
+  { id: 'CVE-2026-24763', minVersion: '2026.1.30', desc: '未授权远程代码执行 (RCE)' },
+];
 
 export default function Connect() {
   const navigate = useNavigate();
-  const { 
-    status, 
-    error, 
-    isConnected, 
-    connect, 
-    loadStoredConfig,
-    systemInfo,
-  } = useGateway();
+  const location = useLocation();
+  const {
+    connected, connecting, error, hello,
+    connect, disconnect, loadStoredConfig, clearStoredConfig,
+  } = useGatewayContext();
 
-  // 表单状态
   const [host, setHost] = useState('');
-  const [port, setPort] = useState(DEFAULT_PORT.toString());
+  const [port, setPort] = useState(String(DEFAULT_PORT));
   const [token, setToken] = useState('');
-  const [useSecure, setUseSecure] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [secure, setSecure] = useState(false);
+  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // 加载存储的配置
+  // Load stored config
   useEffect(() => {
     const stored = loadStoredConfig();
     if (stored) {
       setHost(stored.host);
-      setPort(stored.port.toString());
-      setToken(stored.token);
-      setUseSecure(stored.secure);
+      setPort(String(stored.port));
+      if (stored.token) setToken(stored.token);
+      setSecure(stored.secure || false);
     }
   }, [loadStoredConfig]);
 
-  // 连接成功后跳转
+  // Redirect to app after successful connect
   useEffect(() => {
-    if (isConnected) {
-      // 延迟跳转以显示成功状态
-      const timer = setTimeout(() => {
-        navigate('/');
-      }, 500);
-      return () => clearTimeout(timer);
+    if (connected) {
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+      navigate(from, { replace: true });
     }
-  }, [isConnected, navigate]);
+  }, [connected, navigate, location.state]);
 
-  // 处理地址输入（支持 host:port 格式）
-  const handleHostChange = (value: string) => {
-    // 检查是否包含端口
-    if (value.includes(':')) {
-      const [hostPart, portPart] = value.split(':');
-      setHost(hostPart);
-      if (portPart && /^\d+$/.test(portPart)) {
-        setPort(portPart);
-      }
-    } else {
-      setHost(value);
-    }
-  };
-
-  // 验证表单
-  const isFormValid = (): boolean => {
-    if (!host.trim()) return false;
-    if (!token.trim()) return false;
-    const portNum = parseInt(port);
-    if (isNaN(portNum) || portNum < 1 || portNum > 65535) return false;
-    return true;
-  };
-
-  // 提交连接
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isFormValid() || isSubmitting) return;
-
-    setIsSubmitting(true);
-
+  const handleConnect = () => {
+    if (!host.trim()) return;
     const config: GatewayConfig = {
       host: host.trim(),
-      port: parseInt(port),
-      token: token.trim(),
-      secure: useSecure,
+      port: parseInt(port) || DEFAULT_PORT,
+      token: token.trim() || undefined,
+      secure,
     };
-
-    try {
-      await connect(config);
-    } finally {
-      setIsSubmitting(false);
-    }
+    connect(config);
   };
 
-  const statusConfig = STATUS_CONFIG[status];
+  const handleDisconnect = () => {
+    disconnect();
+    clearStoredConfig();
+  };
+
+  // Check for CVE warnings based on hello payload
+  const gatewayVersion = hello?.version as string || hello?.gatewayVersion as string || '';
+  const cveWarnings = KNOWN_CVES.filter(() => {
+    // Simple check: if version looks old, warn
+    return gatewayVersion && gatewayVersion < '2026.1.30';
+  });
 
   return (
-    <div className="connect-page">
+    <div className="page connect-page">
       <div className="connect-container">
-        {/* Logo 和标题 */}
-        <header className="connect-header">
-          <div className="logo">🚩</div>
+        {/* Header */}
+        <div className="connect-header">
+          <div className="connect-logo">🚩</div>
           <h1>ClawFlag</h1>
-          <p className="tagline">洞察你的 AI，掌控于指尖</p>
-        </header>
-
-        {/* 连接状态 */}
-        <div className="status-badge" style={{ color: statusConfig.color }}>
-          <span className="status-icon">{statusConfig.icon}</span>
-          <span className="status-text">{statusConfig.text}</span>
+          <p className="connect-subtitle">连接到你的 OpenClaw Gateway</p>
         </div>
 
-        {/* 错误信息 */}
-        {error && (
-          <div className="error-message">
-            <span className="error-icon">⚠️</span>
-            <div className="error-details">
-              <span>{error.message}</span>
-              {error.code === 'TIMEOUT' && (
-                <small className="error-hint">请检查 Gateway 地址是否正确，以及 Gateway 是否正在运行</small>
+        {/* Connection Status */}
+        {connected && (
+          <div className="connect-status connected">
+            <span className="status-dot green"></span>
+            <span>已连接到 {host}:{port}</span>
+            {gatewayVersion && <span className="version-badge">v{gatewayVersion}</span>}
+          </div>
+        )}
+
+        {connecting && (
+          <div className="connect-status connecting">
+            <div className="loading-spinner-small"></div>
+            <span>正在连接...</span>
+          </div>
+        )}
+
+        {error && !connecting && (
+          <div className="connect-status error">
+            <span className="status-dot red"></span>
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* CVE Warnings */}
+        {cveWarnings.length > 0 && (
+          <div className="cve-banner">
+            <span className="cve-icon">⚠️</span>
+            <div>
+              <strong>安全警告</strong>
+              {cveWarnings.map(cve => (
+                <p key={cve.id}>{cve.id}: {cve.desc}</p>
+              ))}
+              <p>请升级 Gateway 到 ≥ {cveWarnings[0].minVersion}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Connection Form */}
+        {!connected && (
+          <div className="connect-form">
+            <div className="form-group">
+              <label>Gateway 地址</label>
+              <input
+                type="text"
+                value={host}
+                onChange={e => setHost(e.target.value)}
+                placeholder="例如: 192.168.1.100 或 my-server.local"
+                autoFocus
+                onKeyDown={e => e.key === 'Enter' && handleConnect()}
+              />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group form-group-port">
+                <label>端口</label>
+                <input
+                  type="number"
+                  value={port}
+                  onChange={e => setPort(e.target.value)}
+                  placeholder={DEFAULT_PORT.toString()}
+                />
+              </div>
+              <div className="form-group form-group-secure">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={secure}
+                    onChange={e => setSecure(e.target.checked)}
+                  />
+                  WSS (TLS)
+                </label>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Token (可选)</label>
+              <input
+                type="password"
+                value={token}
+                onChange={e => setToken(e.target.value)}
+                placeholder="粘贴你的 Gateway Token"
+                onKeyDown={e => e.key === 'Enter' && handleConnect()}
+              />
+            </div>
+
+            {showAdvanced && (
+              <div className="form-group">
+                <label className="form-hint">高级选项</label>
+                <p className="form-hint">
+                  使用 Tailscale 时，输入 MagicDNS 地址即可。
+                  如果 Gateway 配置了 <code>controlUi.basePath</code>，请在地址中包含路径。
+                </p>
+              </div>
+            )}
+
+            <button
+              className="btn btn-primary btn-connect"
+              onClick={handleConnect}
+              disabled={!host.trim() || connecting}
+            >
+              {connecting ? '连接中...' : '连接'}
+            </button>
+
+            <button
+              className="btn btn-text"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+            >
+              {showAdvanced ? '隐藏高级选项' : '高级选项'}
+            </button>
+          </div>
+        )}
+
+        {/* Connected: action buttons */}
+        {connected && (
+          <div className="connect-actions">
+            <button className="btn btn-primary" onClick={() => navigate('/')}>
+              进入 ClawFlag →
+            </button>
+            <button className="btn btn-danger" onClick={handleDisconnect}>
+              断开连接
+            </button>
+          </div>
+        )}
+
+        {/* Gateway Info */}
+        {connected && hello && (
+          <div className="gateway-info">
+            <h3>Gateway 信息</h3>
+            <div className="info-grid">
+              <div className="info-item">
+                <span className="info-label">协议版本</span>
+                <span className="info-value">v{hello.protocol}</span>
+              </div>
+              {hello.auth?.role && (
+                <div className="info-item">
+                  <span className="info-label">角色</span>
+                  <span className="info-value">{hello.auth.role}</span>
+                </div>
               )}
-              {error.code === 'AUTH_FAILED' && (
-                <small className="error-hint">Token 无效或已过期，请重新输入</small>
+              {hello.auth?.scopes && (
+                <div className="info-item">
+                  <span className="info-label">权限</span>
+                  <span className="info-value">{hello.auth.scopes.join(', ')}</span>
+                </div>
               )}
-              {error.code === 'NETWORK_ERROR' && (
-                <small className="error-hint">网络连接失败，请检查你的网络设置或防火墙规则</small>
+              {hello.policy?.tickIntervalMs && (
+                <div className="info-item">
+                  <span className="info-label">心跳间隔</span>
+                  <span className="info-value">{hello.policy.tickIntervalMs / 1000}s</span>
+                </div>
               )}
             </div>
           </div>
         )}
 
-        {/* 系统信息（连接成功后显示） */}
-        {isConnected && systemInfo && (
-          <>
-            <div className="success-info">
-              <span className="success-icon">✓</span>
-              <span>
-                Gateway 版本: {systemInfo.version || systemInfo.gateway_version || '未知'}
-              </span>
-            </div>
-            {/* 版本警告 */}
-            {(() => {
-              const ver = systemInfo.version || systemInfo.gateway_version || '';
-              const clean = ver.replace(/-.*$/, '');
-              const parts = clean.split('.').map(Number);
-              const isOld = parts[0] < 2026 || (parts[0] === 2026 && parts[1] < 2 && (parts[1] < 1 || parts[2] < 30));
-              return isOld ? (
-                <div className="error-message" style={{ borderColor: 'rgba(239, 68, 68, 0.4)' }}>
-                  <span className="error-icon">🚨</span>
-                  <div className="error-details">
-                    <span>你的 Gateway 存在已知安全漏洞 (CVE-2026-25253)</span>
-                    <small className="error-hint">
-                      请升级到 2026.1.30+ 以修补远程代码执行漏洞。
-                      <a href="https://docs.openclaw.ai/changelog" target="_blank" rel="noopener noreferrer" style={{ color: '#818cf8', marginLeft: '4px' }}>
-                        查看升级指南 →
-                      </a>
-                    </small>
+        {/* Troubleshoot */}
+        <div className="troubleshoot-section">
+          <button
+            className="btn btn-text troubleshoot-toggle"
+            onClick={() => setShowTroubleshoot(!showTroubleshoot)}
+          >
+            {showTroubleshoot ? '收起' : '🔧 连接问题？'}
+          </button>
+
+          {showTroubleshoot && (
+            <div className="troubleshoot-guide">
+              <h3>故障排除指南</h3>
+              {TROUBLESHOOT_STEPS.map((step, i) => (
+                <div key={i} className="troubleshoot-step">
+                  <span className="step-icon">{step.icon}</span>
+                  <div>
+                    <strong>{step.title}</strong>
+                    <p>{step.desc}</p>
                   </div>
                 </div>
-              ) : null;
-            })()}
-          </>
-        )}
-
-        {/* 连接表单 */}
-        <form className="connect-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="host">Gateway 地址</label>
-            <input
-              id="host"
-              type="text"
-              value={host}
-              onChange={(e) => handleHostChange(e.target.value)}
-              placeholder="例如: 192.168.1.100 或 my-server.local"
-              disabled={status === 'connecting'}
-              autoComplete="off"
-              autoCapitalize="off"
-            />
-            <small className="form-hint">
-              支持 IP 地址或域名，可直接输入 host:port 格式
-            </small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="port">端口</label>
-            <input
-              id="port"
-              type="number"
-              value={port}
-              onChange={(e) => setPort(e.target.value)}
-              placeholder={DEFAULT_PORT.toString()}
-              min="1"
-              max="65535"
-              disabled={status === 'connecting'}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="token">Token</label>
-            <input
-              id="token"
-              type="password"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="粘贴你的 Gateway Token"
-              disabled={status === 'connecting'}
-              autoComplete="off"
-            />
-            <small className="form-hint">
-              在 Gateway 配置文件中找到你的认证 Token
-            </small>
-          </div>
-
-          <div className="form-group checkbox-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={useSecure}
-                onChange={(e) => setUseSecure(e.target.checked)}
-                disabled={status === 'connecting'}
-              />
-              <span>使用安全连接 (WSS)</span>
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            className="connect-button"
-            disabled={!isFormValid() || status === 'connecting'}
-          >
-            {status === 'connecting' ? (
-              <>
-                <span className="spinner"></span>
-                连接中...
-              </>
-            ) : (
-              '连接 Gateway'
-            )}
-          </button>
-        </form>
-
-        {/* 故障排除指南 */}
-        {error && <TroubleshootingGuide errorCode={error.code} />}
-
-        {/* 帮助链接 */}
-        <footer className="connect-footer">
-          <a href="https://docs.clawflag.com/getting-started" target="_blank" rel="noopener noreferrer">
-            如何找到 Gateway 地址和 Token？
-          </a>
-        </footer>
+              ))}
+              <div className="troubleshoot-links">
+                <a href="https://docs.openclaw.ai/gateway/troubleshooting" target="_blank" rel="noopener">
+                  📖 完整文档
+                </a>
+                <a href="https://discord.com/invite/clawd" target="_blank" rel="noopener">
+                  💬 社区支持
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
