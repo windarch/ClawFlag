@@ -5,6 +5,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import GlanceView from '../components/GlanceView';
 import SecurityCheck from '../components/SecurityCheck';
+import SecurityAudit from '../components/SecurityAudit';
 import SecurityBanner from '../components/SecurityBanner';
 import AgentStatsCard from '../components/AgentStatsCard';
 import SubAgentDAG from '../components/SubAgentDAG';
@@ -201,6 +202,7 @@ export default function Pulse() {
               onRescan={rescan}
               loading={secLoading}
             />
+            <SecurityAudit />
           </div>
         )}
       </div>

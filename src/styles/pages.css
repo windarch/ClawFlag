@@ -232,6 +232,66 @@
 .overview-meter { flex-shrink: 0; padding-top: var(--spacing-xl); }
 @media (max-width: 480px) { .overview-top { flex-direction: column; } .overview-meter { align-self: center; padding-top: 0; } }
 
+/* ========== Brain V5: Timeline + Config L0-L3 ========== */
+
+/* Timeline groups */
+.timeline-group { margin-bottom: var(--spacing-md); }
+.timeline-date-header { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-xs) var(--spacing-sm); margin-bottom: var(--spacing-xs); }
+.timeline-date { font-size: 0.8rem; font-weight: 600; color: var(--color-text-primary); }
+.timeline-count { font-size: 0.7rem; color: var(--color-text-muted); background: var(--color-bg-tertiary); padding: 1px 6px; border-radius: 4px; }
+
+/* Entry expanded */
+.memory-entry-wrapper { margin-bottom: var(--spacing-xs); }
+.entry-expanded { background: var(--color-bg-tertiary); border-radius: 0 0 var(--radius-md) var(--radius-md); padding: var(--spacing-md); margin-top: -4px; }
+.entry-full-content { margin: 0; font-size: 0.75rem; color: var(--color-text-secondary); white-space: pre-wrap; word-break: break-word; line-height: 1.6; max-height: 300px; overflow-y: auto; font-family: monospace; }
+
+/* Config L0 */
+.config-l0 { background: var(--color-bg-secondary); border-radius: var(--radius-md); padding: var(--spacing-md); margin-bottom: var(--spacing-md); }
+.l0-identity { display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm); }
+.l0-emoji { font-size: 1.8rem; }
+.l0-info { flex: 1; }
+.l0-name { font-size: 1rem; font-weight: 600; color: var(--color-text-primary); }
+.l0-summary { font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 2px; }
+.l0-health { margin-top: var(--spacing-sm); }
+.l0-health-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 4px; }
+.l0-health-bar { height: 6px; background: var(--color-bg-tertiary); border-radius: 3px; overflow: hidden; }
+.l0-health-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+
+/* Config level selector */
+.config-level-selector { display: flex; gap: 3px; margin-bottom: var(--spacing-sm); background: rgba(255,255,255,0.05); border-radius: 8px; padding: 3px; }
+.level-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border: none; background: transparent; border-radius: 6px; cursor: pointer; transition: all 0.2s; color: var(--color-text-muted); }
+.level-btn.current { background: rgba(255,255,255,0.1); color: var(--level-color); }
+.level-btn .level-icon { font-size: 1rem; }
+.level-btn .level-label { font-size: 0.65rem; }
+
+/* Config level description */
+.config-level-desc { font-size: 0.75rem; color: var(--color-text-secondary); padding: var(--spacing-xs) var(--spacing-sm); border-left: 3px solid var(--color-accent); margin-bottom: var(--spacing-md); background: rgba(255,255,255,0.03); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+
+/* Config file cards */
+.config-files { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.config-file-card { background: var(--color-bg-secondary); border-radius: var(--radius-md); padding: var(--spacing-md); cursor: pointer; transition: var(--transition-fast); }
+.config-file-card:active { transform: scale(0.98); }
+.config-file-header { display: flex; align-items: center; gap: var(--spacing-sm); }
+.config-file-icon { font-size: 1.2rem; flex-shrink: 0; }
+.config-file-info { flex: 1; min-width: 0; }
+.config-file-name { font-size: 0.85rem; font-weight: 600; color: var(--color-text-primary); }
+.config-file-desc { font-size: 0.7rem; color: var(--color-text-muted); margin-top: 2px; }
+.config-file-level { font-size: 0.65rem; font-weight: 600; flex-shrink: 0; }
+
+/* Git diff */
+.config-git-diff { background: var(--color-bg-secondary); border-radius: var(--radius-md); padding: var(--spacing-md); margin-top: var(--spacing-md); }
+.git-diff-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--color-text-primary); margin-bottom: var(--spacing-sm); }
+.git-diff-status { font-size: 0.7rem; color: var(--color-status-online); background: rgba(34,197,94,0.15); padding: 2px 8px; border-radius: 4px; }
+.git-diff-content { margin: 0; font-size: 0.75rem; color: var(--color-text-muted); font-family: monospace; white-space: pre-wrap; }
+
+/* Config editor modal */
+.config-editor-modal { position: fixed; inset: 0; z-index: 1000; background: var(--color-bg-primary); display: flex; flex-direction: column; }
+.editor-modal-header { display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md); border-bottom: 1px solid var(--color-border); }
+.editor-modal-title { font-size: 0.9rem; font-weight: 600; color: var(--color-text-primary); }
+.editor-modal-path { font-size: 0.65rem; color: var(--color-text-muted); margin-top: 2px; }
+.editor-modal-actions { display: flex; gap: var(--spacing-sm); }
+.editor-modal-textarea { flex: 1; padding: var(--spacing-md); border: none; background: var(--color-bg-secondary); color: var(--color-text-primary); font-family: monospace; font-size: 0.8rem; line-height: 1.6; resize: none; outline: none; }
+
 /* ========== Reduced motion ========== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

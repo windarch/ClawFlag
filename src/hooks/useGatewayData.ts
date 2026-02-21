@@ -52,6 +52,14 @@ export interface MemoryEntry {
   size: number;
   chunks: number;
   type: 'daily' | 'long-term' | 'conversation';
+  content?: string;
+  fidelity?: {
+    score: number;
+    retained: string[];
+    lost: string[];
+    totalEntities: number;
+    compressedAt?: Date;
+  };
 }
 
 export interface MemoryData {
@@ -61,6 +69,7 @@ export interface MemoryData {
   totalChunks: number;
   totalSize: number;
   lastUpdated: Date;
+  isReal: boolean;
 }
 
 export interface CronJob {
@@ -138,11 +147,18 @@ const MOCK_COST: CostData = {
 
 const MOCK_MEMORY: MemoryData = {
   entries: [
-    { id: 'm1', filename: 'MEMORY.md', date: new Date(Date.now() - 86400000), summary: '长期记忆 - 团队架构、项目信息、永久指令', size: 12800, chunks: 45, type: 'long-term' },
-    { id: 'm2', filename: '2026-02-21.md', date: new Date(Date.now() - 86400000), summary: 'ClawFlag MVP 全量开发，18个组件完成', size: 3200, chunks: 12, type: 'daily' },
-    { id: 'm3', filename: 'conversation-log.md', date: new Date(Date.now() - 86400000), summary: '完整对话记录存档', size: 4500, chunks: 18, type: 'conversation' },
+    { id: 'm1', filename: 'MEMORY.md', date: new Date(Date.now() - 86400000), summary: '长期记忆 - 团队架构、项目信息、永久指令', size: 12800, chunks: 45, type: 'long-term',
+      fidelity: { score: 88, retained: ['Raymond', 'ClawFlag', 'OpenClaw', 'Tailscale', '龙虾'], lost: ['旧IP地址'], totalEntities: 6, compressedAt: new Date(Date.now() - 7200000) } },
+    { id: 'm2', filename: '2026-02-22.md', date: new Date(), summary: 'ClawFlag V5 大脑页重构，记忆智能功能开发', size: 4200, chunks: 15, type: 'daily',
+      fidelity: { score: 95, retained: ['Brain页', '记忆搜索', '保真度环', 'L0-L3'], lost: [], totalEntities: 4 } },
+    { id: 'm3', filename: '2026-02-21.md', date: new Date(Date.now() - 86400000), summary: 'ClawFlag MVP 全量开发，18个组件完成', size: 3200, chunks: 12, type: 'daily',
+      fidelity: { score: 72, retained: ['GatewayClient', 'WebSocket', 'Ed25519'], lost: ['调试日志', '临时方案'], totalEntities: 5, compressedAt: new Date(Date.now() - 43200000) } },
+    { id: 'm4', filename: '2026-02-20.md', date: new Date(Date.now() - 172800000), summary: '项目初始化，技术选型确定', size: 2100, chunks: 8, type: 'daily',
+      fidelity: { score: 55, retained: ['React', 'TypeScript'], lost: ['讨论细节', '备选方案', '时间线'], totalEntities: 5, compressedAt: new Date(Date.now() - 86400000) } },
+    { id: 'm5', filename: 'conversation-log.md', date: new Date(Date.now() - 86400000), summary: '完整对话记录存档', size: 4500, chunks: 18, type: 'conversation',
+      fidelity: { score: 45, retained: ['关键决策'], lost: ['闲聊', '重复确认', '调试过程'], totalEntities: 4, compressedAt: new Date(Date.now() - 3600000) } },
   ],
-  healthPercent: 82, totalFiles: 12, totalChunks: 89, totalSize: 24400, lastUpdated: new Date(Date.now() - 3600000),
+  healthPercent: 82, totalFiles: 12, totalChunks: 89, totalSize: 24400, lastUpdated: new Date(Date.now() - 3600000), isReal: false,
 };
 
 const MOCK_CRON: CronJob[] = [
@@ -305,14 +321,75 @@ export function useCostData() {
 export function useMemoryData() {
   const { client, connected } = useGatewayContext();
   const [memory, setMemory] = useState<MemoryData>(MOCK_MEMORY);
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
+  const [entryContents, setEntryContents] = useState<Map<string, string>>(new Map());
 
   const refresh = useCallback(async () => {
     if (!client?.connected) { setMemory(MOCK_MEMORY); return; }
-    // Memory data would come from reading workspace files via gateway
-    // For now use mock as there's no direct memory API
+    setLoading(true);
+    try {
+      // Try workspace.list for memory directory
+      const res = await client.request<{ files: Array<Record<string, unknown>> }>('workspace.list', { path: 'memory/', recursive: false });
+      const files = res.files || [];
+      if (files.length > 0) {
+        const entries: MemoryEntry[] = files.map((f, i) => {
+          const name = String(f.name || f.filename || '');
+          const isDaily = /\d{4}-\d{2}-\d{2}/.test(name);
+          const dateMatch = name.match(/(\d{4}-\d{2}-\d{2})/);
+          return {
+            id: `real-${i}`,
+            filename: name,
+            date: dateMatch ? new Date(dateMatch[1]) : new Date(Number(f.modifiedAt || Date.now())),
+            summary: String(f.summary || name),
+            size: Number(f.size || 0),
+            chunks: Math.ceil(Number(f.size || 0) / 500),
+            type: isDaily ? 'daily' as const : name.includes('MEMORY') ? 'long-term' as const : 'conversation' as const,
+          };
+        }).sort((a, b) => b.date.getTime() - a.date.getTime());
+
+        const totalSize = entries.reduce((s, e) => s + e.size, 0);
+        const totalChunks = entries.reduce((s, e) => s + e.chunks, 0);
+        setMemory({
+          entries,
+          healthPercent: Math.min(100, Math.round((entries.length / 30) * 100)),
+          totalFiles: entries.length,
+          totalChunks,
+          totalSize,
+          lastUpdated: new Date(),
+          isReal: true,
+        });
+        setLoading(false);
+        return;
+      }
+    } catch {
+      // workspace.list not available, use mock
+    }
     setMemory(MOCK_MEMORY);
+    setLoading(false);
   }, [client]);
+
+  const toggleEntry = useCallback(async (entryId: string) => {
+    const next = new Set(expandedEntries);
+    if (next.has(entryId)) {
+      next.delete(entryId);
+    } else {
+      next.add(entryId);
+      // Load content if not cached
+      if (!entryContents.has(entryId) && client?.connected) {
+        const entry = memory.entries.find(e => e.id === entryId);
+        if (entry) {
+          try {
+            const res = await client.request<{ content: string }>('workspace.read', { path: `memory/${entry.filename}` });
+            setEntryContents(prev => new Map(prev).set(entryId, res.content || '(空文件)'));
+          } catch {
+            setEntryContents(prev => new Map(prev).set(entryId, '(无法读取文件内容 - Gateway 不支持 workspace.read)'));
+          }
+        }
+      }
+    }
+    setExpandedEntries(next);
+  }, [expandedEntries, entryContents, client, memory.entries]);
 
   const search = useCallback((query: string): MemoryEntry[] => {
     return memory.entries.filter(e =>
@@ -323,7 +400,7 @@ export function useMemoryData() {
 
   useEffect(() => { if (connected) refresh(); }, [connected, refresh]);
 
-  return { memory, loading, search, refresh };
+  return { memory, loading, search, refresh, expandedEntries, entryContents, toggleEntry };
 }
 
 export function useCronJobs() {

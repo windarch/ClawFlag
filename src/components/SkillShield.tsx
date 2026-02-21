@@ -206,6 +206,15 @@ function UpdateDiffView({ diff }: { diff: UpdateDiff }) {
 export default function SkillShield() {
   const [analyses] = useState<SkillAnalysis[]>(MOCK_ANALYSES);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [isolated, setIsolated] = useState<Set<string>>(new Set());
+
+  const toggleIsolate = (id: string) => {
+    setIsolated(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div style={{ marginBottom: '1rem' }}>
@@ -215,13 +224,14 @@ export default function SkillShield() {
       {analyses.map(skill => (
         <div key={skill.id} className="card" style={{ marginBottom: '0.5rem', padding: '0.75rem' }}>
           <div
-            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', opacity: isolated.has(skill.id) ? 0.5 : 1 }}
             onClick={() => setExpanded(expanded === skill.id ? null : skill.id)}
           >
             <ScoreRing score={skill.safetyScore} />
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)', fontWeight: 500 }}>
+                  {isolated.has(skill.id) && <span style={{ color: 'var(--color-status-error)', marginRight: '0.3rem' }}>🔒</span>}
                   {skill.name}
                 </span>
                 <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
@@ -272,7 +282,19 @@ export default function SkillShield() {
               {skill.updateDiff && <UpdateDiffView diff={skill.updateDiff} />}
 
               {/* Actions */}
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleIsolate(skill.id); }}
+                  style={{
+                    background: isolated.has(skill.id) ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                    border: 'none', borderRadius: 6,
+                    padding: '6px 12px', fontSize: '0.75rem',
+                    color: isolated.has(skill.id) ? 'var(--color-status-online)' : 'var(--color-status-error)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {isolated.has(skill.id) ? '🔓 解除隔离' : '🔒 隔离'}
+                </button>
                 {skill.safetyScore < 50 && (
                   <button style={{
                     background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: 6,
