@@ -20,6 +20,69 @@ const STATUS_CONFIG: Record<GatewayStatus, { text: string; color: string; icon: 
   error: { text: '连接错误', color: '#ef4444', icon: '✕' },
 };
 
+function TroubleshootingGuide({ errorCode }: { errorCode: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const tips: Record<string, { title: string; steps: string[] }> = {
+    TIMEOUT: {
+      title: '连接超时',
+      steps: [
+        '确认 Gateway 正在运行：ssh 到服务器执行 openclaw status',
+        '检查 IP 和端口是否正确（默认端口 18789）',
+        '如果 Gateway 在远程服务器上，检查防火墙是否放行该端口',
+        '使用 Tailscale/WireGuard 等内网穿透工具时，确认隧道已连接',
+        '尝试在浏览器中访问 http://host:18789 确认 Gateway 可达',
+      ],
+    },
+    AUTH_FAILED: {
+      title: 'Token 无效',
+      steps: [
+        '在服务器上查看 Token：cat ~/.openclaw/openclaw.json | grep token',
+        '确保复制了完整的 Token（包含所有字符）',
+        '如果最近重装了 Gateway，Token 可能已更新',
+        '检查 Token 前后是否有多余的空格',
+      ],
+    },
+    NETWORK_ERROR: {
+      title: '网络错误',
+      steps: [
+        '检查手机/电脑的网络连接',
+        '如果 Gateway 在局域网内，确保你在同一网络下',
+        '确认没有使用代理/VPN 阻断了连接',
+        '尝试使用 WSS（启用安全连接）',
+      ],
+    },
+  };
+
+  const guide = tips[errorCode] || tips['NETWORK_ERROR'];
+
+  return (
+    <div style={{ marginTop: '0.75rem' }}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          background: 'none', border: 'none', color: 'var(--color-accent, #e94560)',
+          fontSize: '0.8rem', cursor: 'pointer', padding: 0, textDecoration: 'underline',
+        }}
+      >
+        {expanded ? '▼' : '▶'} 故障排除指南：{guide.title}
+      </button>
+      {expanded && (
+        <div style={{
+          marginTop: '0.5rem', padding: '0.75rem', borderRadius: 8,
+          background: 'rgba(255,255,255,0.03)', border: '1px solid var(--color-border, rgba(255,255,255,0.1))',
+        }}>
+          <ol style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8rem', color: 'var(--color-text-secondary, #a0a0a0)' }}>
+            {guide.steps.map((step, i) => (
+              <li key={i} style={{ marginBottom: '0.4rem', lineHeight: 1.5 }}>{step}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Connect() {
   const navigate = useNavigate();
   const { 
@@ -251,6 +314,9 @@ export default function Connect() {
             )}
           </button>
         </form>
+
+        {/* 故障排除指南 */}
+        {error && <TroubleshootingGuide errorCode={error.code} />}
 
         {/* 帮助链接 */}
         <footer className="connect-footer">

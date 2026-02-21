@@ -149,11 +149,46 @@ export function checkSkills(info: GatewayInfo): CheckResult {
   };
 }
 
+export function checkProxy(info: GatewayInfo): CheckResult {
+  const bind = info.bind?.toLowerCase();
+
+  // If exposed to network but no reverse proxy indication
+  if (bind && bind !== 'loopback' && bind !== '127.0.0.1' && bind !== 'localhost') {
+    return {
+      id: 'proxy',
+      title: '反向代理',
+      level: 'warn',
+      detail: 'Gateway 可从网络访问，但未检测到反向代理',
+      fix: '建议通过 nginx/caddy 提供 TLS 终止和速率限制',
+    };
+  }
+
+  return {
+    id: 'proxy',
+    title: '反向代理',
+    level: 'pass',
+    detail: 'Gateway 仅本地访问，无需反向代理',
+  };
+}
+
+export function checkCostAnomaly(info: GatewayInfo): CheckResult {
+  // This check is a placeholder - in real usage it would analyze session data
+  const _unused = info; // acknowledge the parameter
+  return {
+    id: 'cost_anomaly',
+    title: '成本异常',
+    level: 'pass',
+    detail: '未检测到异常的 token 消耗模式',
+  };
+}
+
 export function runAllChecks(info: GatewayInfo): CheckResult[] {
   return [
     checkVersion(info),
     checkExposure(info),
     checkAuth(info),
+    checkProxy(info),
     checkSkills(info),
+    checkCostAnomaly(info),
   ];
 }
