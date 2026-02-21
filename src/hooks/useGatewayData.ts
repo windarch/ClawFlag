@@ -496,22 +496,36 @@ export function useModelRoutes() {
       ]);
       const models = modelsResult.models || [];
       const config = configResult.config || {};
-      const modelResolver = config.modelResolver as Record<string, unknown> || {};
-      const defaultModel = String(modelResolver.defaultModel || config.defaultModel || models[0] || 'unknown');
+      const agents = config.agents as Record<string, unknown> || {};
+      const defaults = agents.defaults as Record<string, unknown> || {};
+      const gateway = config.gateway as Record<string, unknown> || {};
+      const defaultModel = String(defaults.model || config.defaultModel || 'unknown');
+      const totalModels = models.length;
 
-      // Build routes from config
-      const routes: ModelRoute[] = models.map((m: unknown, i: number) => {
-        const model = typeof m === 'string' ? m : String((m as Record<string, unknown>).id || m);
-        return {
-          id: `r-${i}`,
-          pattern: i === 0 ? 'default' : model.includes('haiku') ? 'cron/*' : `route-${i}`,
-          model,
+      // Build routes from actual config, not from all available models
+      const routes: ModelRoute[] = [];
+      // Default route
+      routes.push({
+        id: 'r-default',
+        pattern: 'default',
+        model: defaultModel !== 'unknown' ? defaultModel : (typeof models[0] === 'string' ? models[0] : String((models[0] as Record<string, unknown>)?.id || 'unknown')),
+        fallback: null,
+        enabled: true,
+        monthlyTokens: 0,
+        monthlyCost: 0,
+      });
+      // Show gateway port/bind as info
+      if (gateway.port) {
+        routes.push({
+          id: 'r-gateway',
+          pattern: `gateway:${gateway.port}`,
+          model: `${totalModels} models available`,
           fallback: null,
           enabled: true,
           monthlyTokens: 0,
           monthlyCost: 0,
-        };
-      });
+        });
+      }
 
       setRouteData({
         routes: routes.length > 0 ? routes : MOCK_ROUTES.routes,
