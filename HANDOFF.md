@@ -38,10 +38,13 @@ ClawFlag — 移动端 AI Agent 指挥中心 PWA。已完成前端 UI + Gateway 
 4. final 事件也更新 content 文本
 5. **E2E 测试 10/10 全通过** ✅
 6. **chat.send 流式响应 E2E 验证通过** — delta + final 事件正常
+7. sessions.list 字段映射修复 — updatedAt(非updatedAtMs)、tokenUsage 从 totalTokens/contextTokens 计算、active 检测
+8. sessions.usage 嵌套格式解析 — 从 sessions[].usage 提取 token 数据，估算美元成本
+9. Router 页面不再显示 712 个 model — 只展示实际配置的路由
 
 ### 🚀 下一步
-1. 在手机/浏览器上实测 Chat 页面发消息 + 流式显示
-2. 各页面真实数据验证（Pulse/Brain/Router 的 UI 展示）
+1. 在手机/浏览器上实测所有页面的真实数据展示
+2. Brain 页面对接真实 memory/skills 数据（目前是 mock）
 3. 实时事件推送（新消息通知）
 4. 移动端 UX 打磨
 5. 会话切换器完善
