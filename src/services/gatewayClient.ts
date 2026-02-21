@@ -27,6 +27,7 @@ export interface GatewayClientOpts {
   onClose?: (code: number, reason: string) => void;
   onError?: (error: string) => void;
   onReconnecting?: (attempt: number, delayMs: number) => void;
+  onPairingRequired?: () => void;
   requestTimeoutMs?: number;
 }
 
@@ -58,6 +59,86 @@ export interface GatewayError {
   message: string;
 }
 
+// ========== Device Auth Helpers ==========
+
+const DB_NAME = 'clawflag-device';
+const DB_STORE = 'keys';
+
+interface DeviceKeys {
+  id: string;
+  publicKey: string;
+  privateKey: CryptoKey;
+  deviceToken?: string;
+}
+
+async function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function loadOrCreateDeviceKeys(): Promise<DeviceKeys> {
+  const db = await openDB();
+  const existing = await new Promise<DeviceKeys | undefined>((resolve) => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const req = tx.objectStore(DB_STORE).get('device');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(undefined);
+  });
+  if (existing?.privateKey) return existing;
+
+  // Generate ECDSA P-256 keypair
+  const keyPair = await crypto.subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false, // privateKey not extractable
+    ['sign', 'verify']
+  );
+  const pubRaw = await crypto.subtle.exportKey('raw', keyPair.publicKey);
+  const pubHex = Array.from(new Uint8Array(pubRaw)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const id = pubHex.slice(0, 32); // first 16 bytes as device ID
+
+  const keys: DeviceKeys = { id, publicKey: pubHex, privateKey: keyPair.privateKey };
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).put(keys, 'device');
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+  return keys;
+}
+
+async function saveDeviceToken(token: string) {
+  const db = await openDB();
+  const tx = db.transaction(DB_STORE, 'readwrite');
+  const store = tx.objectStore(DB_STORE);
+  const existing = await new Promise<DeviceKeys | undefined>((resolve) => {
+    const req = store.get('device');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => resolve(undefined);
+  });
+  if (existing) {
+    existing.deviceToken = token;
+    store.put(existing, 'device');
+  }
+  await new Promise<void>((r) => { tx.oncomplete = () => r(); });
+  db.close();
+}
+
+async function signNonce(privateKey: CryptoKey, nonce: string): Promise<string> {
+  const enc = new TextEncoder();
+  const sig = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    privateKey,
+    enc.encode(nonce)
+  );
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export class GatewayClient {
   private ws: WebSocket | null = null;
   private pending = new Map<ReqId, Pending>();
@@ -71,6 +152,7 @@ export class GatewayClient {
   private reqId = 0;
   private opts: GatewayClientOpts;
   private _connected = false;
+  private challengeNonce: string | null = null;
 
   constructor(opts: GatewayClientOpts) {
     this.opts = opts;
@@ -306,28 +388,66 @@ export class GatewayClient {
   private async sendConnect() {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    const auth: Record<string, string> = {};
+    const auth: Record<string, unknown> = {};
     if (this.opts.token) auth.token = this.opts.token;
     if (this.opts.password) auth.password = this.opts.password;
+
+    // Device auth: load or create keypair, sign nonce
+    let device: Record<string, unknown> | undefined;
+    try {
+      const keys = await loadOrCreateDeviceKeys();
+      const nonce = this.challengeNonce || '';
+      const signedAt = Date.now();
+      const signature = nonce ? await signNonce(keys.privateKey, nonce) : '';
+
+      device = {
+        id: keys.id,
+        publicKey: keys.publicKey,
+        signature,
+        signedAt,
+        nonce,
+      };
+
+      // If we have a saved deviceToken, include it
+      if (keys.deviceToken) {
+        auth.deviceToken = keys.deviceToken;
+      }
+    } catch (e) {
+      console.warn('Device auth unavailable:', e);
+    }
 
     try {
       const result = await this.request<HelloPayload>('connect', {
         minProtocol: 3,
         maxProtocol: 3,
         client: {
-          id: 'clawflag',
+          id: 'openclaw-control-ui',
           version: '0.2.0',
           platform: navigator?.platform || 'web',
-          mode: 'webchat',
+          mode: 'ui',
         },
-        role: 'operator.admin',
-        scopes: ['operator.admin', 'operator.read', 'operator.write', 'operator.approvals'],
+        role: 'operator',
+        scopes: ['operator.read', 'operator.write', 'operator.approvals'],
         auth: Object.keys(auth).length > 0 ? auth : undefined,
+        device,
       });
 
       this._connected = true;
       this.reconnectAttempt = 0;
       this.backoffMs = 800;
+
+      // Save deviceToken if issued
+      if (result.auth?.deviceToken) {
+        saveDeviceToken(result.auth.deviceToken).catch(() => {});
+      }
+
+      // Check if pairing is pending (connected but no scopes)
+      if (result.auth?.scopes && result.auth.scopes.length > 0) {
+        // Fully authenticated
+      } else if (!result.auth?.deviceToken) {
+        // No device token = pairing required
+        this.opts.onPairingRequired?.();
+      }
 
       // Start tick (heartbeat)
       if (result.policy?.tickIntervalMs) {
@@ -341,7 +461,11 @@ export class GatewayClient {
 
       this.opts.onHello?.(result);
     } catch (e) {
-      this.opts.onError?.(`connect failed: ${e instanceof Error ? e.message : e}`);
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('pairing')) {
+        this.opts.onPairingRequired?.();
+      }
+      this.opts.onError?.(`connect failed: ${msg}`);
     }
   }
 
@@ -355,7 +479,8 @@ export class GatewayClient {
 
       // Handle connect.challenge
       if (event === 'connect.challenge') {
-        // Immediately send connect after receiving challenge
+        const payload = msg.payload as { nonce?: string } | undefined;
+        this.challengeNonce = payload?.nonce ?? null;
         this.sendConnect();
         return;
       }

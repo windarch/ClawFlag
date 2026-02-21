@@ -26,10 +26,12 @@ interface GatewayContextValue {
   // State
   connected: boolean;
   connecting: boolean;
+  pairingRequired: boolean;
   error: string | null;
   hello: HelloPayload | null;
   config: GatewayConfig | null;
   client: GatewayClient | null;
+  scopes: string[];
 
   // Actions
   connect: (config: GatewayConfig) => void;
@@ -43,9 +45,11 @@ const GatewayContext = createContext<GatewayContextValue | null>(null);
 export function GatewayProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [pairingRequired, setPairingRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hello, setHello] = useState<HelloPayload | null>(null);
   const [config, setConfig] = useState<GatewayConfig | null>(null);
+  const [scopes, setScopes] = useState<string[]>([]);
   const clientRef = useRef<GatewayClient | null>(null);
 
   const buildUrl = useCallback((cfg: GatewayConfig) => {
@@ -96,7 +100,14 @@ export function GatewayProvider({ children }: { children: ReactNode }) {
         setConnecting(false);
         setError(null);
         setHello(payload);
+        setScopes(payload.auth?.scopes ?? []);
+        setPairingRequired(false);
         saveConfig(cfg);
+      },
+      onPairingRequired: () => {
+        setPairingRequired(true);
+        setConnecting(false);
+        setError('设备待批准 — 请在 Gateway 主机上批准此设备');
       },
       onClose: (_code, reason) => {
         setConnected(false);
@@ -133,10 +144,12 @@ export function GatewayProvider({ children }: { children: ReactNode }) {
     <GatewayContext.Provider value={{
       connected,
       connecting,
+      pairingRequired,
       error,
       hello,
       config,
       client: clientRef.current,
+      scopes,
       connect,
       disconnect,
       loadStoredConfig,
