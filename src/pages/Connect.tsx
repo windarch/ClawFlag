@@ -30,7 +30,7 @@ export default function Connect() {
   const navigate = useNavigate();
   const location = useLocation();
   const {
-    connected, connecting, error, hello,
+    connected, connecting, pairingRequired, error, hello, scopes,
     connect, disconnect, loadStoredConfig, clearStoredConfig,
   } = useGatewayContext();
 
@@ -109,7 +109,19 @@ export default function Connect() {
           </div>
         )}
 
-        {error && !connecting && (
+        {pairingRequired && (
+          <div className="connect-status pairing">
+            <span>🔐</span>
+            <div>
+              <strong>设备待批准</strong>
+              <p style={{margin:'4px 0 0',fontSize:'0.8rem'}}>
+                请在 Gateway 主机上运行 <code>openclaw devices</code> 批准此设备，然后重新连接。
+              </p>
+            </div>
+          </div>
+        )}
+
+        {error && !connecting && !pairingRequired && (
           <div className="connect-status error">
             <span className="status-dot red"></span>
             <span>{error}</span>
@@ -202,6 +214,19 @@ export default function Connect() {
             >
               {showAdvanced ? '隐藏高级选项' : '高级选项'}
             </button>
+          </div>
+        )}
+
+        {/* Connected but no scopes warning */}
+        {connected && scopes.length === 0 && (
+          <div className="connect-status pairing">
+            <span>⚠️</span>
+            <div>
+              <strong>连接成功但无权限</strong>
+              <p style={{margin:'4px 0 0',fontSize:'0.8rem'}}>
+                设备已连接但未获得操作权限。请在 Gateway 主机上批准此设备。
+              </p>
+            </div>
           </div>
         )}
 
