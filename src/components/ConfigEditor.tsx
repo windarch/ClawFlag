@@ -40,7 +40,7 @@ const MOCK_CONFIGS: ConfigFile[] = [
   {
     name: 'TOOLS.md', path: '~/clawd/TOOLS.md', level: 2,
     description: '工具配置 - SSH、API 密钥等本地设置',
-    content: '# TOOLS.md - Local Notes\n\n## SSH\n### 火山云服务器\n- Host: YOUR_SERVER_IP_2\n...',
+    content: '# TOOLS.md - Local Notes\n\n## SSH\n### 火山云服务器\n- Host: YOUR_SERVER_IP\n...',
   },
   {
     name: 'HEARTBEAT.md', path: '~/clawd/HEARTBEAT.md', level: 2,

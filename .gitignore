@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 STATUS.md
 HANDOFF.md
+
+# Environment
+.env
+.env.local
+.env.*.local
