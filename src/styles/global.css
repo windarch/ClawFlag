@@ -155,3 +155,47 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Mobile UX enhancements */
+button, a, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 44px;
+}
+
+.card {
+  min-height: 44px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Safe area for bottom nav */
+.bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Small screen adjustments */
+@media (max-width: 320px) {
+  .page {
+    padding: 0.5rem;
+  }
+  .page-title {
+    font-size: 1.1rem;
+  }
+  .card {
+    padding: 0.5rem;
+  }
+}
+
+/* Smooth scrolling */
+.main-content {
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
