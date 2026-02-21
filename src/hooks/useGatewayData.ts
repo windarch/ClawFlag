@@ -1,24 +1,28 @@
 /**
- * Gateway 业务数据 Hooks
- * 提供各页面所需的业务数据，当前使用 mock 数据，后续切换到真实 WebSocket 数据
+ * Gateway Business Data Hooks
+ * Real API first, mock fallback when disconnected.
+ * Each hook tries the GatewayClient; on failure falls back to mock data.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useGatewayContext } from '../contexts/GatewayContext';
 
 // ============ Types ============
 
 export interface SessionInfo {
   id: string;
+  key: string;
   label: string;
   model: string;
-  kind: 'main' | 'isolated' | 'cron';
-  tokenUsage: number; // percentage
+  kind: 'main' | 'isolated' | 'cron' | 'unknown';
+  tokenUsage: number;
   inputTokens: number;
   outputTokens: number;
   cost: number;
   status: 'active' | 'idle' | 'completed';
   lastActive: Date;
   messageCount: number;
+  agentId?: string;
 }
 
 export interface CostData {
@@ -30,7 +34,7 @@ export interface CostData {
   trend: 'up' | 'down' | 'stable';
   trendPercent: number;
   breakdown: CostBreakdownItem[];
-  hourly: number[]; // 24 hours
+  hourly: number[];
 }
 
 export interface CostBreakdownItem {
@@ -45,7 +49,7 @@ export interface MemoryEntry {
   filename: string;
   date: Date;
   summary: string;
-  size: number; // bytes
+  size: number;
   chunks: number;
   type: 'daily' | 'long-term' | 'conversation';
 }
@@ -62,13 +66,17 @@ export interface MemoryData {
 export interface CronJob {
   id: string;
   name: string;
-  schedule: string; // human readable
+  description?: string;
+  schedule: string;
   scheduleExpr: string;
+  scheduleKind: 'at' | 'every' | 'cron';
   lastRun: Date | null;
-  nextRun: Date;
+  nextRun: Date | null;
   status: 'enabled' | 'disabled' | 'running';
-  lastResult: 'success' | 'error' | 'pending';
+  lastResult: 'success' | 'error' | 'pending' | 'skipped';
+  lastError?: string;
   payload: string;
+  sessionTarget: 'main' | 'isolated';
 }
 
 export interface SecurityCheck {
@@ -80,14 +88,14 @@ export interface SecurityCheck {
 }
 
 export interface SecurityStatus {
-  overallScore: number; // 0-100
+  overallScore: number;
   checks: SecurityCheck[];
   lastScan: Date;
 }
 
 export interface ModelRoute {
   id: string;
-  pattern: string; // e.g. "cron/*", "main", "default"
+  pattern: string;
   model: string;
   fallback: string | null;
   enabled: boolean;
@@ -98,7 +106,7 @@ export interface ModelRoute {
 export interface CircuitBreaker {
   model: string;
   status: 'closed' | 'open' | 'half-open';
-  failureRate: number; // percentage
+  failureRate: number;
   lastFailure: Date | null;
   cooldownMs: number;
 }
@@ -112,55 +120,14 @@ export interface ModelRouteData {
 // ============ Mock Data ============
 
 const MOCK_SESSIONS: SessionInfo[] = [
-  {
-    id: 'main-001',
-    label: 'main',
-    model: 'claude-opus-4',
-    kind: 'main',
-    tokenUsage: 42,
-    inputTokens: 85000,
-    outputTokens: 32000,
-    cost: 8.50,
-    status: 'active',
-    lastActive: new Date(Date.now() - 60000),
-    messageCount: 47,
-  },
-  {
-    id: 'sub-clawflag',
-    label: 'clawflag-phase1',
-    model: 'claude-sonnet-4',
-    kind: 'isolated',
-    tokenUsage: 78,
-    inputTokens: 120000,
-    outputTokens: 45000,
-    cost: 3.20,
-    status: 'active',
-    lastActive: new Date(Date.now() - 300000),
-    messageCount: 12,
-  },
-  {
-    id: 'cron-daily',
-    label: 'daily-news',
-    model: 'claude-haiku-3.5',
-    kind: 'cron',
-    tokenUsage: 15,
-    inputTokens: 8000,
-    outputTokens: 2000,
-    cost: 0.05,
-    status: 'completed',
-    lastActive: new Date(Date.now() - 3600000),
-    messageCount: 3,
-  },
+  { id: 'main-001', key: 'agent:main:main', label: 'main', model: 'claude-opus-4', kind: 'main', tokenUsage: 42, inputTokens: 85000, outputTokens: 32000, cost: 8.50, status: 'active', lastActive: new Date(Date.now() - 60000), messageCount: 47 },
+  { id: 'sub-001', key: 'agent:main:clawflag', label: 'clawflag-dev', model: 'claude-sonnet-4', kind: 'isolated', tokenUsage: 78, inputTokens: 120000, outputTokens: 45000, cost: 3.20, status: 'active', lastActive: new Date(Date.now() - 300000), messageCount: 12 },
+  { id: 'cron-001', key: 'cron:daily-news', label: 'daily-news', model: 'claude-haiku-3.5', kind: 'cron', tokenUsage: 15, inputTokens: 8000, outputTokens: 2000, cost: 0.05, status: 'completed', lastActive: new Date(Date.now() - 3600000), messageCount: 3 },
 ];
 
 const MOCK_COST: CostData = {
-  todayCost: 12.58,
-  yesterdayCost: 8.42,
-  dailyBudget: 50,
-  monthlyBudget: 500,
-  monthlyCost: 186.30,
-  trend: 'up',
-  trendPercent: 49.4,
+  todayCost: 12.58, yesterdayCost: 8.42, dailyBudget: 50, monthlyBudget: 500,
+  monthlyCost: 186.30, trend: 'up', trendPercent: 49.4,
   breakdown: [
     { model: 'claude-opus-4', cost: 8.50, percent: 67.6, tokens: 117000 },
     { model: 'claude-sonnet-4', cost: 3.20, percent: 25.4, tokens: 165000 },
@@ -173,51 +140,15 @@ const MOCK_MEMORY: MemoryData = {
   entries: [
     { id: 'm1', filename: 'MEMORY.md', date: new Date(Date.now() - 86400000), summary: '长期记忆 - 团队架构、项目信息、永久指令', size: 12800, chunks: 45, type: 'long-term' },
     { id: 'm2', filename: '2026-02-21.md', date: new Date(Date.now() - 86400000), summary: 'ClawFlag MVP 全量开发，18个组件完成', size: 3200, chunks: 12, type: 'daily' },
-    { id: 'm3', filename: '2026-02-20-1849.md', date: new Date(Date.now() - 172800000), summary: '新三条核心指令确立', size: 1800, chunks: 6, type: 'daily' },
-    { id: 'm4', filename: 'conversation-log.md', date: new Date(Date.now() - 86400000), summary: '完整对话记录存档', size: 4500, chunks: 18, type: 'conversation' },
-    { id: 'm5', filename: '2026-02-06-0758.md', date: new Date(Date.now() - 1296000000), summary: '服务器维护和部署记录', size: 2100, chunks: 8, type: 'daily' },
+    { id: 'm3', filename: 'conversation-log.md', date: new Date(Date.now() - 86400000), summary: '完整对话记录存档', size: 4500, chunks: 18, type: 'conversation' },
   ],
-  healthPercent: 82,
-  totalFiles: 12,
-  totalChunks: 89,
-  totalSize: 24400,
-  lastUpdated: new Date(Date.now() - 3600000),
+  healthPercent: 82, totalFiles: 12, totalChunks: 89, totalSize: 24400, lastUpdated: new Date(Date.now() - 3600000),
 };
 
 const MOCK_CRON: CronJob[] = [
-  {
-    id: 'cron-1',
-    name: 'daily-news',
-    schedule: '每天 9:00',
-    scheduleExpr: '0 9 * * *',
-    lastRun: new Date(Date.now() - 54000000),
-    nextRun: new Date(Date.now() + 32400000),
-    status: 'enabled',
-    lastResult: 'success',
-    payload: '生成每日新闻摘要',
-  },
-  {
-    id: 'cron-2',
-    name: 'heartbeat',
-    schedule: '每 30 分钟',
-    scheduleExpr: '*/30 * * * *',
-    lastRun: new Date(Date.now() - 900000),
-    nextRun: new Date(Date.now() + 900000),
-    status: 'enabled',
-    lastResult: 'success',
-    payload: '心跳检查',
-  },
-  {
-    id: 'cron-3',
-    name: 'weekly-report',
-    schedule: '每周一 10:00',
-    scheduleExpr: '0 10 * * 1',
-    lastRun: new Date(Date.now() - 432000000),
-    nextRun: new Date(Date.now() + 172800000),
-    status: 'disabled',
-    lastResult: 'pending',
-    payload: '生成周报',
-  },
+  { id: 'cron-1', name: 'daily-news', schedule: '每天 9:00', scheduleExpr: '0 9 * * *', scheduleKind: 'cron', lastRun: new Date(Date.now() - 54000000), nextRun: new Date(Date.now() + 32400000), status: 'enabled', lastResult: 'success', payload: '生成每日新闻摘要', sessionTarget: 'isolated' },
+  { id: 'cron-2', name: 'heartbeat', schedule: '每 30 分钟', scheduleExpr: '*/30 * * * *', scheduleKind: 'cron', lastRun: new Date(Date.now() - 900000), nextRun: new Date(Date.now() + 900000), status: 'enabled', lastResult: 'success', payload: '心跳检查', sessionTarget: 'main' },
+  { id: 'cron-3', name: 'weekly-report', schedule: '每周一 10:00', scheduleExpr: '0 10 * * 1', scheduleKind: 'cron', lastRun: null, nextRun: new Date(Date.now() + 172800000), status: 'disabled', lastResult: 'pending', payload: '生成周报', sessionTarget: 'isolated' },
 ];
 
 const MOCK_SECURITY: SecurityStatus = {
@@ -227,7 +158,7 @@ const MOCK_SECURITY: SecurityStatus = {
     { id: 's2', name: '认证配置', status: 'pass', description: 'Token 认证已启用', detail: 'auth_token 已配置' },
     { id: 's3', name: '网络暴露', status: 'pass', description: '仅本地回环访问', detail: 'bind: loopback (127.0.0.1)' },
     { id: 's4', name: '代理配置', status: 'fail', description: '未配置反向代理', detail: '建议通过 nginx/caddy 提供 TLS' },
-    { id: 's5', name: 'Skill 安全', status: 'warn', description: '2 个本地 skill 未经审计', detail: 'volcengine-asr, windows-control 安全评分较低' },
+    { id: 's5', name: 'Skill 安全', status: 'warn', description: '2 个本地 skill 未经审计', detail: 'volcengine-asr, windows-control' },
   ],
   lastScan: new Date(Date.now() - 7200000),
 };
@@ -246,78 +177,499 @@ const MOCK_ROUTES: ModelRouteData = {
   ],
 };
 
+// ============ Helper: format schedule for display ============
+
+function formatSchedule(schedule: Record<string, unknown>): { display: string; expr: string; kind: 'at' | 'every' | 'cron' } {
+  const kind = schedule.kind as string;
+  if (kind === 'cron') {
+    return { display: String(schedule.expr), expr: String(schedule.expr), kind: 'cron' };
+  }
+  if (kind === 'every') {
+    const ms = schedule.everyMs as number;
+    const mins = Math.round(ms / 60000);
+    return { display: mins >= 60 ? `每 ${Math.round(mins / 60)} 小时` : `每 ${mins} 分钟`, expr: `every ${ms}ms`, kind: 'every' };
+  }
+  if (kind === 'at') {
+    return { display: `一次性: ${schedule.at}`, expr: String(schedule.at), kind: 'at' };
+  }
+  return { display: '未知', expr: '', kind: 'cron' };
+}
+
 // ============ Hooks ============
 
 export function useSessions() {
-  const [sessions] = useState<SessionInfo[]>(MOCK_SESSIONS);
-  const [loading] = useState(false);
+  const { client, connected } = useGatewayContext();
+  const [sessions, setSessions] = useState<SessionInfo[]>(MOCK_SESSIONS);
+  const [loading, setLoading] = useState(false);
+  const [isReal, setIsReal] = useState(false);
 
-  const refresh = useCallback(() => {
-    // TODO: fetch from gateway
-  }, []);
+  const refresh = useCallback(async () => {
+    if (!client?.connected) { setSessions(MOCK_SESSIONS); setIsReal(false); return; }
+    setLoading(true);
+    try {
+      const result = await client.sessionsList({ activeMinutes: 1440, includeDerivedTitles: true, includeLastMessage: true });
+      const mapped: SessionInfo[] = ((result.sessions || []) as Record<string, unknown>[]).map((s, i) => ({
+        id: String(s.sessionId || s.key || `s-${i}`),
+        key: String(s.key || ''),
+        label: String(s.label || s.key || ''),
+        model: String(s.model || 'unknown'),
+        kind: (String(s.kind || 'unknown') as SessionInfo['kind']),
+        tokenUsage: Number(s.contextPercent || 0),
+        inputTokens: Number(s.inputTokens || 0),
+        outputTokens: Number(s.outputTokens || 0),
+        cost: Number(s.cost || 0),
+        status: s.active ? 'active' : 'idle' as const,
+        lastActive: new Date(Number(s.updatedAtMs || s.createdAtMs || Date.now())),
+        messageCount: Number(s.messageCount || 0),
+        agentId: s.agentId ? String(s.agentId) : undefined,
+      }));
+      setSessions(mapped.length > 0 ? mapped : MOCK_SESSIONS);
+      setIsReal(mapped.length > 0);
+    } catch {
+      setSessions(MOCK_SESSIONS);
+      setIsReal(false);
+    }
+    setLoading(false);
+  }, [client]);
 
-  return { sessions, loading, refresh };
+  useEffect(() => { if (connected) refresh(); }, [connected, refresh]);
+
+  return { sessions, loading, refresh, isReal };
 }
 
 export function useCostData() {
-  const [cost] = useState<CostData>(MOCK_COST);
-  const [loading] = useState(false);
+  const { client, connected } = useGatewayContext();
+  const [cost, setCost] = useState<CostData>(MOCK_COST);
+  const [loading, setLoading] = useState(false);
+  const [isReal, setIsReal] = useState(false);
 
-  return { cost, loading };
+  const refresh = useCallback(async () => {
+    if (!client?.connected) { setCost(MOCK_COST); setIsReal(false); return; }
+    setLoading(true);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const [todayUsage, yesterdayUsage] = await Promise.all([
+        client.sessionsUsage({ startDate: today, endDate: today }),
+        client.sessionsUsage({ startDate: yesterday, endDate: yesterday }),
+      ]);
+      const tu = todayUsage as Record<string, unknown>;
+      const yu = yesterdayUsage as Record<string, unknown>;
+      const todayCost = Number(tu.totalCost || tu.cost || 0);
+      const yesterdayCost = Number(yu.totalCost || yu.cost || 0);
+      const trend = todayCost > yesterdayCost ? 'up' : todayCost < yesterdayCost ? 'down' : 'stable';
+      const trendPercent = yesterdayCost > 0 ? Math.round(((todayCost - yesterdayCost) / yesterdayCost) * 100) : 0;
+
+      setCost({
+        ...MOCK_COST,
+        todayCost,
+        yesterdayCost,
+        trend: trend as CostData['trend'],
+        trendPercent: Math.abs(trendPercent),
+      });
+      setIsReal(true);
+    } catch {
+      setCost(MOCK_COST);
+      setIsReal(false);
+    }
+    setLoading(false);
+  }, [client]);
+
+  useEffect(() => { if (connected) refresh(); }, [connected, refresh]);
+
+  return { cost, loading, refresh, isReal };
 }
 
 export function useMemoryData() {
-  const [memory] = useState<MemoryData>(MOCK_MEMORY);
+  const { client, connected } = useGatewayContext();
+  const [memory, setMemory] = useState<MemoryData>(MOCK_MEMORY);
   const [loading] = useState(false);
 
-  const search = useCallback((_query: string): MemoryEntry[] => {
-    // TODO: semantic search via gateway
+  const refresh = useCallback(async () => {
+    if (!client?.connected) { setMemory(MOCK_MEMORY); return; }
+    // Memory data would come from reading workspace files via gateway
+    // For now use mock as there's no direct memory API
+    setMemory(MOCK_MEMORY);
+  }, [client]);
+
+  const search = useCallback((query: string): MemoryEntry[] => {
     return memory.entries.filter(e =>
-      e.summary.toLowerCase().includes(_query.toLowerCase()) ||
-      e.filename.toLowerCase().includes(_query.toLowerCase())
+      e.summary.toLowerCase().includes(query.toLowerCase()) ||
+      e.filename.toLowerCase().includes(query.toLowerCase())
     );
   }, [memory.entries]);
 
-  return { memory, loading, search };
+  useEffect(() => { if (connected) refresh(); }, [connected, refresh]);
+
+  return { memory, loading, search, refresh };
 }
 
 export function useCronJobs() {
-  const [jobs] = useState<CronJob[]>(MOCK_CRON);
-  const [loading] = useState(false);
+  const { client, connected } = useGatewayContext();
+  const [jobs, setJobs] = useState<CronJob[]>(MOCK_CRON);
+  const [loading, setLoading] = useState(false);
+  const [isReal, setIsReal] = useState(false);
 
-  const toggleJob = useCallback((_id: string) => {
-    // TODO: enable/disable via gateway
-  }, []);
+  const refresh = useCallback(async () => {
+    if (!client?.connected) { setJobs(MOCK_CRON); setIsReal(false); return; }
+    setLoading(true);
+    try {
+      const result = await client.cronList(true);
+      const mapped: CronJob[] = ((result.jobs || []) as Record<string, unknown>[]).map((j) => {
+        const sched = j.schedule as Record<string, unknown> || {};
+        const state = j.state as Record<string, unknown> || {};
+        const payload = j.payload as Record<string, unknown> || {};
+        const { display, expr, kind } = formatSchedule(sched);
 
-  const runJob = useCallback((_id: string) => {
-    // TODO: trigger via gateway
-  }, []);
+        return {
+          id: String(j.id),
+          name: String(j.name || ''),
+          description: j.description ? String(j.description) : undefined,
+          schedule: display,
+          scheduleExpr: expr,
+          scheduleKind: kind,
+          lastRun: state.lastRunAtMs ? new Date(Number(state.lastRunAtMs)) : null,
+          nextRun: state.nextRunAtMs ? new Date(Number(state.nextRunAtMs)) : null,
+          status: state.runningAtMs ? 'running' : (j.enabled ? 'enabled' : 'disabled') as CronJob['status'],
+          lastResult: (state.lastStatus === 'ok' ? 'success' : state.lastStatus === 'error' ? 'error' : state.lastStatus === 'skipped' ? 'skipped' : 'pending') as CronJob['lastResult'],
+          lastError: state.lastError ? String(state.lastError) : undefined,
+          payload: payload.kind === 'agentTurn' ? String(payload.message || '') : String(payload.text || ''),
+          sessionTarget: String(j.sessionTarget || 'isolated') as 'main' | 'isolated',
+        };
+      });
+      setJobs(mapped.length > 0 ? mapped : MOCK_CRON);
+      setIsReal(mapped.length > 0);
+    } catch {
+      setJobs(MOCK_CRON);
+      setIsReal(false);
+    }
+    setLoading(false);
+  }, [client]);
 
-  return { jobs, loading, toggleJob, runJob };
+  const toggleJob = useCallback(async (id: string) => {
+    if (!client?.connected) return;
+    const job = jobs.find(j => j.id === id);
+    if (!job) return;
+    try {
+      await client.cronUpdate(id, { enabled: job.status === 'disabled' });
+      refresh();
+    } catch { /* ignore */ }
+  }, [client, jobs, refresh]);
+
+  const runJob = useCallback(async (id: string) => {
+    if (!client?.connected) return;
+    try {
+      await client.cronRun(id);
+      refresh();
+    } catch { /* ignore */ }
+  }, [client, refresh]);
+
+  useEffect(() => { if (connected) refresh(); }, [connected, refresh]);
+
+  return { jobs, loading, toggleJob, runJob, refresh, isReal };
 }
 
 export function useSecurityStatus() {
-  const [security] = useState<SecurityStatus>(MOCK_SECURITY);
-  const [loading] = useState(false);
+  const { client, connected } = useGatewayContext();
+  const [security, setSecurity] = useState<SecurityStatus>(MOCK_SECURITY);
+  const [loading, setLoading] = useState(false);
+  const [isReal, setIsReal] = useState(false);
 
-  const rescan = useCallback(() => {
-    // TODO: trigger rescan
-  }, []);
+  const rescan = useCallback(async () => {
+    if (!client?.connected) { setSecurity(MOCK_SECURITY); setIsReal(false); return; }
+    setLoading(true);
+    try {
+      const [statusResult, healthResult] = await Promise.all([
+        client.status(),
+        client.health(),
+      ]);
+      const checks: SecurityCheck[] = [];
+      let score = 100;
 
-  return { security, loading, rescan };
+      // Version check
+      const version = String(statusResult.version || statusResult.gatewayVersion || '');
+      checks.push({
+        id: 'version',
+        name: '版本检查',
+        status: version ? 'pass' : 'warn',
+        description: version ? `Gateway ${version}` : '无法获取版本',
+        detail: version || '请检查 Gateway 状态',
+      });
+      if (!version) score -= 10;
+
+      // Auth check
+      const authMode = String(statusResult.authMode || healthResult.authMode || '');
+      const hasAuth = authMode && authMode !== 'none';
+      checks.push({
+        id: 'auth',
+        name: '认证配置',
+        status: hasAuth ? 'pass' : 'fail',
+        description: hasAuth ? `${authMode} 认证已启用` : '未配置认证',
+        detail: hasAuth ? `auth mode: ${authMode}` : '建议启用 token 或 password 认证',
+      });
+      if (!hasAuth) score -= 30;
+
+      // Bind check
+      const bind = String(statusResult.bind || healthResult.bind || '');
+      const isLocal = bind.includes('127.0.0.1') || bind.includes('localhost') || bind.includes('loopback');
+      checks.push({
+        id: 'bind',
+        name: '网络暴露',
+        status: isLocal ? 'pass' : bind.includes('0.0.0.0') ? 'fail' : 'warn',
+        description: isLocal ? '仅本地回环访问' : bind.includes('0.0.0.0') ? '绑定到所有接口' : `绑定到 ${bind}`,
+        detail: `bind: ${bind || 'unknown'}`,
+      });
+      if (bind.includes('0.0.0.0')) score -= 25;
+      else if (!isLocal) score -= 10;
+
+      // TLS check
+      const tls = statusResult.tls || healthResult.tls;
+      checks.push({
+        id: 'tls',
+        name: 'TLS 加密',
+        status: tls ? 'pass' : 'warn',
+        description: tls ? 'TLS 已启用' : '未配置 TLS',
+        detail: tls ? 'HTTPS/WSS 已启用' : '建议通过 Tailscale Serve 或 nginx 启用 TLS',
+      });
+      if (!tls) score -= 10;
+
+      // Health overall
+      const healthy = healthResult.healthy !== false;
+      checks.push({
+        id: 'health',
+        name: '系统健康',
+        status: healthy ? 'pass' : 'warn',
+        description: healthy ? '系统运行正常' : '系统异常',
+        detail: JSON.stringify(healthResult).slice(0, 200),
+      });
+      if (!healthy) score -= 15;
+
+      setSecurity({ overallScore: Math.max(0, score), checks, lastScan: new Date() });
+      setIsReal(true);
+    } catch {
+      setSecurity(MOCK_SECURITY);
+      setIsReal(false);
+    }
+    setLoading(false);
+  }, [client]);
+
+  useEffect(() => { if (connected) rescan(); }, [connected, rescan]);
+
+  return { security, loading, rescan, isReal };
 }
 
 export function useModelRoutes() {
-  const [routeData] = useState<ModelRouteData>(MOCK_ROUTES);
-  const [loading] = useState(false);
+  const { client, connected } = useGatewayContext();
+  const [routeData, setRouteData] = useState<ModelRouteData>(MOCK_ROUTES);
+  const [loading, setLoading] = useState(false);
+  const [isReal, setIsReal] = useState(false);
 
-  const updateRoute = useCallback((_id: string, _updates: Partial<ModelRoute>) => {
-    // TODO: update via gateway
+  const refresh = useCallback(async () => {
+    if (!client?.connected) { setRouteData(MOCK_ROUTES); setIsReal(false); return; }
+    setLoading(true);
+    try {
+      const [modelsResult, configResult] = await Promise.all([
+        client.modelsList(),
+        client.configGet(),
+      ]);
+      const models = modelsResult.models || [];
+      const config = configResult.config || {};
+      const modelResolver = config.modelResolver as Record<string, unknown> || {};
+      const defaultModel = String(modelResolver.defaultModel || config.defaultModel || models[0] || 'unknown');
+
+      // Build routes from config
+      const routes: ModelRoute[] = models.map((m: unknown, i: number) => {
+        const model = typeof m === 'string' ? m : String((m as Record<string, unknown>).id || m);
+        return {
+          id: `r-${i}`,
+          pattern: i === 0 ? 'default' : model.includes('haiku') ? 'cron/*' : `route-${i}`,
+          model,
+          fallback: null,
+          enabled: true,
+          monthlyTokens: 0,
+          monthlyCost: 0,
+        };
+      });
+
+      setRouteData({
+        routes: routes.length > 0 ? routes : MOCK_ROUTES.routes,
+        circuitBreakers: MOCK_ROUTES.circuitBreakers, // No real CB API yet
+        defaultModel,
+      });
+      setIsReal(routes.length > 0);
+    } catch {
+      setRouteData(MOCK_ROUTES);
+      setIsReal(false);
+    }
+    setLoading(false);
+  }, [client]);
+
+  const updateRoute = useCallback(async (_id: string, _updates: Partial<ModelRoute>) => {
+    // Would update config via config.set
   }, []);
 
-  const toggleRoute = useCallback((_id: string) => {
-    // TODO: toggle via gateway
+  const toggleRoute = useCallback(async (_id: string) => {
+    // Would toggle route via config
   }, []);
 
-  return { routeData, loading, updateRoute, toggleRoute };
+  useEffect(() => { if (connected) refresh(); }, [connected, refresh]);
+
+  return { routeData, loading, updateRoute, toggleRoute, refresh, isReal };
+}
+
+// ============ Chat Hook ============
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  timestamp: Date;
+  cost?: number;
+  tokens?: { input: number; output: number };
+  toolCalls?: ToolCallInfo[];
+  isStreaming?: boolean;
+  isAborted?: boolean;
+}
+
+export interface ToolCallInfo {
+  id: string;
+  name: string;
+  input: string;
+  output?: string;
+  duration?: number;
+  status: 'running' | 'done' | 'error';
+}
+
+export function useChat(sessionKey: string) {
+  const { client, connected } = useGatewayContext();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [runId, setRunId] = useState<string | null>(null);
+  const unsubRef = useRef<(() => void) | null>(null);
+
+  // Subscribe to chat events
+  useEffect(() => {
+    if (!client) return;
+    unsubRef.current?.();
+    const unsub = client.onEvent((event, payload) => {
+      if (event !== 'chat') return;
+      const ev = payload as Record<string, unknown>;
+      if (ev.sessionKey !== sessionKey) return;
+
+      const state = ev.state as string;
+      const msg = ev.message as Record<string, unknown> | undefined;
+
+      if (state === 'delta' && msg) {
+        // Streaming delta - update or create assistant message
+        setMessages(prev => {
+          const existing = prev.find(m => m.id === ev.runId);
+          if (existing) {
+            return prev.map(m => m.id === ev.runId ? {
+              ...m,
+              content: m.content + String(msg.text || msg.content || ''),
+              isStreaming: true,
+            } : m);
+          }
+          return [...prev, {
+            id: String(ev.runId),
+            role: 'assistant' as const,
+            content: String(msg.text || msg.content || ''),
+            timestamp: new Date(),
+            isStreaming: true,
+          }];
+        });
+      } else if (state === 'final') {
+        // Final message
+        const usage = ev.usage as Record<string, number> | undefined;
+        setMessages(prev => prev.map(m => m.id === ev.runId ? {
+          ...m,
+          isStreaming: false,
+          tokens: usage ? { input: usage.inputTokens || 0, output: usage.outputTokens || 0 } : undefined,
+        } : m));
+        setSending(false);
+        setRunId(null);
+      } else if (state === 'aborted') {
+        setMessages(prev => prev.map(m => m.id === ev.runId ? { ...m, isStreaming: false, isAborted: true } : m));
+        setSending(false);
+        setRunId(null);
+      } else if (state === 'error') {
+        const errMsg = String(ev.errorMessage || 'Unknown error');
+        setMessages(prev => [...prev.filter(m => m.id !== ev.runId), {
+          id: `err-${Date.now()}`,
+          role: 'system' as const,
+          content: `❌ ${errMsg}`,
+          timestamp: new Date(),
+        }]);
+        setSending(false);
+        setRunId(null);
+      }
+    });
+    unsubRef.current = unsub;
+    return () => { unsub(); };
+  }, [client, sessionKey]);
+
+  // Load history
+  const loadHistory = useCallback(async () => {
+    if (!client?.connected) return;
+    setLoading(true);
+    try {
+      const result = await client.chatHistory(sessionKey, 50);
+      const msgs = (result.messages || []).map((m: unknown, i: number) => {
+        const msg = m as Record<string, unknown>;
+        return {
+          id: `h-${i}`,
+          role: String(msg.role || 'assistant') as ChatMessage['role'],
+          content: String(msg.content || msg.text || ''),
+          timestamp: new Date(Number(msg.timestamp || Date.now())),
+        };
+      });
+      if (msgs.length > 0) setMessages(msgs);
+    } catch { /* keep existing messages */ }
+    setLoading(false);
+  }, [client, sessionKey]);
+
+  // Send message
+  const send = useCallback(async (content: string) => {
+    if (!client?.connected || !content.trim()) return;
+    // Add user message immediately
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: content.trim(),
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, userMsg]);
+    setSending(true);
+    try {
+      const result = await client.chatSend(sessionKey, content.trim());
+      setRunId(result.runId);
+    } catch (e) {
+      setSending(false);
+      setMessages(prev => [...prev, {
+        id: `err-${Date.now()}`,
+        role: 'system',
+        content: `❌ 发送失败: ${e instanceof Error ? e.message : e}`,
+        timestamp: new Date(),
+      }]);
+    }
+  }, [client, sessionKey]);
+
+  // Abort
+  const abort = useCallback(async () => {
+    if (!client?.connected) return;
+    try { await client.chatAbort(sessionKey); } catch { /* ignore */ }
+  }, [client, sessionKey]);
+
+  // Summarize (inject)
+  const summarize = useCallback(async () => {
+    if (!client?.connected) return;
+    try {
+      await client.chatInject(sessionKey, '[用户请求总结此会话]');
+    } catch { /* ignore */ }
+  }, [client, sessionKey]);
+
+  useEffect(() => { if (connected) loadHistory(); }, [connected, loadHistory]);
+
+  return { messages, loading, sending, runId, send, abort, summarize, loadHistory };
 }

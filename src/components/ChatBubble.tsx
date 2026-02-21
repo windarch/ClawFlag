@@ -1,193 +1,236 @@
 /**
  * ChatBubble 组件
- * 渲染聊天消息气泡，支持 Markdown、工具调用、折叠代码块、文件差异、内联批准
+ * 渲染聊天消息气泡，支持：
+ * - Markdown 渲染
+ * - 折叠长代码块
+ * - 工具调用卡片
+ * - 文件差异卡片
+ * - 内联批准按钮
+ * - 成本标签
+ * - 流式动画
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import type { ChatBubbleProps, ToolCall } from '../types/chat';
 import './ChatBubble.css';
 
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-  if (isToday) return timeStr;
-  const dateStr = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
-  return `${dateStr} ${timeStr}`;
+interface ToolCallDisplay {
+  id: string;
+  name: string;
+  args?: string;
+  result?: string;
+  duration?: number;
+  status: 'running' | 'done' | 'error';
 }
 
-function formatCost(cost: number, currency: string): string {
-  return currency === 'USD' ? `$${cost.toFixed(4)}` : currency === 'CNY' ? `¥${cost.toFixed(4)}` : `${cost.toFixed(4)} ${currency}`;
+interface MessageData {
+  id: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  timestamp: number;
+  tokens?: { input: number; output: number };
+  cost?: number;
+  toolCalls?: ToolCallDisplay[];
+  isStreaming?: boolean;
 }
 
-function formatTokens(tokens: number): string {
-  return tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : String(tokens);
+interface ChatBubbleProps {
+  message: MessageData;
+  onToolCallClick?: (tc: ToolCallDisplay) => void;
+  onApprove?: (actionId: string) => void;
+  onReject?: (actionId: string) => void;
 }
 
-const toolStatusIcons: Record<string, string> = { pending: '⏳', running: '⚙️', completed: '✅', failed: '❌' };
-const toolStatusLabels: Record<string, string> = { pending: '等待中', running: '执行中', completed: '完成', failed: '失败' };
+// Detect code blocks that are too long
+const CODE_COLLAPSE_THRESHOLD = 10; // lines
 
-// Collapsible code block for long output
-function CollapsibleCode({ code, language }: { code: string; language?: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const lines = code.split('\n');
-  const shouldCollapse = lines.length > 5;
+// Detect file diffs
+const DIFF_PATTERN = /^(---|\+\+\+|@@|diff --git)/m;
 
-  if (!shouldCollapse) {
-    return <pre className="code-block"><code>{code}</code></pre>;
-  }
+export default function ChatBubble({ message, onToolCallClick, onApprove, onReject }: ChatBubbleProps) {
+  const [collapsedBlocks, setCollapsedBlocks] = useState<Set<number>>(new Set());
+
+  const isUser = message.role === 'user';
+  const isSystem = message.role === 'system';
+  const isStreaming = message.isStreaming;
+
+  // Process content: detect approval requests
+  const approvalMatch = message.content.match(/\[APPROVAL_REQUEST:(\w+)\](.*)/s);
+  const hasApproval = approvalMatch && !isUser;
+
+  // Split content into segments (text + code blocks)
+  const segments = useMemo(() => {
+    const parts: { type: 'text' | 'code' | 'diff'; content: string; lang?: string; index: number }[] = [];
+    const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+    let lastIndex = 0;
+    let match;
+    let idx = 0;
+
+    while ((match = codeBlockRegex.exec(message.content)) !== null) {
+      // Text before code block
+      if (match.index > lastIndex) {
+        parts.push({ type: 'text', content: message.content.slice(lastIndex, match.index), index: idx++ });
+      }
+      // Code block
+      const code = match[2];
+      const lang = match[1] || '';
+      const isDiff = DIFF_PATTERN.test(code) || lang === 'diff';
+      parts.push({
+        type: isDiff ? 'diff' : 'code',
+        content: code,
+        lang,
+        index: idx++,
+      });
+      lastIndex = match.index + match[0].length;
+    }
+    // Remaining text
+    if (lastIndex < message.content.length) {
+      parts.push({ type: 'text', content: message.content.slice(lastIndex), index: idx++ });
+    }
+    return parts;
+  }, [message.content]);
+
+  const toggleCollapse = (index: number) => {
+    setCollapsedBlocks(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const formatTime = (ts: number) => {
+    const d = new Date(ts);
+    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  };
 
   return (
-    <div className="collapsible-code">
-      <pre className="code-block">
-        <code>{expanded ? code : lines.slice(0, 5).join('\n') + '\n...'}</code>
-      </pre>
-      <button className="code-toggle" onClick={() => setExpanded(!expanded)}>
-        {expanded ? '▲ 收起' : `▼ 展开 (${lines.length} 行${language ? ` · ${language}` : ''})`}
-      </button>
-    </div>
-  );
-}
-
-// File diff card for Write/Edit tool calls
-function FileDiffCard({ toolCall }: { toolCall: ToolCall }) {
-  const isFileOp = ['Write', 'Edit', 'write', 'edit'].includes(toolCall.name);
-  if (!isFileOp) return null;
-
-  const filename = (toolCall.args?.path as string) || (toolCall.args?.file_path as string) || 'unknown';
-  const result = typeof toolCall.result === 'string' ? toolCall.result : '';
-  const addedMatch = result.match(/(\d+)\s*bytes/);
-
-  return (
-    <div className="file-diff-card">
-      <div className="file-diff-header">
-        <span className="file-diff-icon">📄</span>
-        <span className="file-diff-name">{filename.split('/').pop()}</span>
-        {toolCall.name.toLowerCase() === 'write' && <span className="file-diff-badge file-diff-add">新建</span>}
-        {toolCall.name.toLowerCase() === 'edit' && <span className="file-diff-badge file-diff-edit">修改</span>}
-      </div>
-      <div className="file-diff-meta">
-        {filename} {addedMatch && `· ${addedMatch[0]}`}
-      </div>
-    </div>
-  );
-}
-
-// Inline approval buttons for dangerous operations
-function InlineApproval({ toolCall }: { toolCall: ToolCall }) {
-  const [decided, setDecided] = useState<'approved' | 'rejected' | null>(null);
-  const isDangerous = toolCall.status === 'pending' && 
-    /delete|rm|drop|destroy|remove|危险/i.test(`${toolCall.name} ${JSON.stringify(toolCall.args)}`);
-  
-  if (!isDangerous) return null;
-  if (decided) {
-    return (
-      <div className={`inline-approval-result ${decided}`}>
-        {decided === 'approved' ? '✅ 已批准' : '❌ 已拒绝'}
-      </div>
-    );
-  }
-
-  return (
-    <div className="inline-approval">
-      <span className="inline-approval-label">⚠️ 需要批准</span>
-      <div className="inline-approval-buttons">
-        <button className="approval-btn approve" onClick={() => setDecided('approved')}>✅ 批准</button>
-        <button className="approval-btn reject" onClick={() => setDecided('rejected')}>❌ 拒绝</button>
-      </div>
-    </div>
-  );
-}
-
-function ToolCallCard({ toolCall, onClick }: { toolCall: ToolCall; onClick?: () => void }) {
-  return (
-    <>
-      <div className="tool-call-card" onClick={onClick} role="button" tabIndex={0}>
-        <div className="tool-call-header">
-          <span className="tool-call-icon">🔧</span>
-          <span className="tool-call-name">{toolCall.name}</span>
-          <span className={`tool-call-status tool-call-status--${toolCall.status}`}>
-            {toolStatusIcons[toolCall.status]} {toolStatusLabels[toolCall.status]}
+    <div className={`chat-bubble ${isUser ? 'user' : isSystem ? 'system' : 'assistant'} ${isStreaming ? 'streaming' : ''}`}>
+      {/* Role indicator */}
+      <div className="bubble-header">
+        <span className="bubble-role">
+          {isUser ? '👤' : isSystem ? '⚙️' : '🤖'}
+        </span>
+        <span className="bubble-time">{formatTime(message.timestamp)}</span>
+        {message.tokens && (
+          <span className="bubble-tokens" title={`输入: ${message.tokens.input} / 输出: ${message.tokens.output}`}>
+            {((message.tokens.input + message.tokens.output) / 1000).toFixed(1)}K
           </span>
-          {toolCall.durationMs && <span className="tool-call-duration">{toolCall.durationMs}ms</span>}
-        </div>
+        )}
+        {message.cost != null && message.cost > 0 && (
+          <span className="bubble-cost">¥{message.cost.toFixed(3)}</span>
+        )}
       </div>
-      <FileDiffCard toolCall={toolCall} />
-      <InlineApproval toolCall={toolCall} />
-    </>
-  );
-}
 
-// Custom markdown renderer with collapsible code blocks
-function MarkdownContent({ content }: { content: string }) {
-  return (
-    <div className="markdown-content">
-      <ReactMarkdown
-        components={{
-          code({ className, children, ...props }) {
-            const match = /language-(\w+)/.exec(className || '');
-            const codeStr = String(children).replace(/\n$/, '');
-            const isBlock = codeStr.includes('\n');
-            if (isBlock) {
-              return <CollapsibleCode code={codeStr} language={match?.[1]} />;
-            }
-            return <code className={className} {...props}>{children}</code>;
-          },
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    </div>
-  );
-}
-
-export function ChatBubble({ message, onRetry, onToolCallInspect }: ChatBubbleProps) {
-  const { role, content, timestamp, status, toolCalls, costInfo } = message;
-
-  const bubbleClass = [
-    'chat-bubble', `chat-bubble--${role}`,
-    status === 'streaming' ? 'bubble-streaming' : '',
-  ].filter(Boolean).join(' ');
-
-  return (
-    <div className={bubbleClass}>
+      {/* Content */}
       <div className="bubble-content">
-        {role === 'user' ? (
-          <div className="markdown-content">{content}</div>
-        ) : (
-          <MarkdownContent content={content} />
-        )}
-        {toolCalls && toolCalls.length > 0 && (
-          <div className="tool-calls">
-            {toolCalls.map((tc) => (
-              <ToolCallCard key={tc.id} toolCall={tc} onClick={() => onToolCallInspect?.(tc)} />
-            ))}
+        {segments.map(seg => {
+          if (seg.type === 'text') {
+            return (
+              <div key={seg.index} className="bubble-text">
+                <ReactMarkdown>{seg.content}</ReactMarkdown>
+              </div>
+            );
+          }
+
+          if (seg.type === 'diff') {
+            return (
+              <div key={seg.index} className="bubble-diff">
+                <div className="diff-header">
+                  <span>📄 文件差异</span>
+                  <button className="btn-collapse" onClick={() => toggleCollapse(seg.index)}>
+                    {collapsedBlocks.has(seg.index) ? '展开' : '折叠'}
+                  </button>
+                </div>
+                {!collapsedBlocks.has(seg.index) && (
+                  <pre className="diff-content">
+                    {seg.content.split('\n').map((line, i) => (
+                      <span
+                        key={i}
+                        className={`diff-line ${line.startsWith('+') ? 'added' : line.startsWith('-') ? 'removed' : line.startsWith('@@') ? 'hunk' : ''}`}
+                      >
+                        {line}
+                        {'\n'}
+                      </span>
+                    ))}
+                  </pre>
+                )}
+              </div>
+            );
+          }
+
+          // Code block
+          const lines = seg.content.split('\n');
+          const isLong = lines.length > CODE_COLLAPSE_THRESHOLD;
+          const isCollapsed = collapsedBlocks.has(seg.index) || (isLong && !collapsedBlocks.has(seg.index) && collapsedBlocks.size === 0);
+
+          return (
+            <div key={seg.index} className="bubble-code">
+              <div className="code-header">
+                <span className="code-lang">{seg.lang || 'code'}</span>
+                <span className="code-lines">{lines.length} 行</span>
+                {isLong && (
+                  <button className="btn-collapse" onClick={() => toggleCollapse(seg.index)}>
+                    {isCollapsed ? `展开 (${lines.length} 行)` : '折叠'}
+                  </button>
+                )}
+              </div>
+              <pre className="code-content">
+                <code>
+                  {isCollapsed
+                    ? lines.slice(0, 5).join('\n') + `\n... (${lines.length - 5} 行已折叠)`
+                    : seg.content}
+                </code>
+              </pre>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Tool Calls */}
+      {message.toolCalls && message.toolCalls.length > 0 && (
+        <div className="bubble-tools">
+          {message.toolCalls.map(tc => (
+            <button
+              key={tc.id}
+              className={`tool-call-card ${tc.status}`}
+              onClick={() => onToolCallClick?.(tc)}
+            >
+              <span className="tool-icon">
+                {tc.status === 'running' ? '⏳' : tc.status === 'error' ? '❌' : '🔧'}
+              </span>
+              <span className="tool-name">{tc.name}</span>
+              {tc.duration != null && (
+                <span className="tool-duration">{(tc.duration / 1000).toFixed(1)}s</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Inline Approval */}
+      {hasApproval && onApprove && onReject && (
+        <div className="bubble-approval">
+          <p className="approval-desc">{approvalMatch[2]}</p>
+          <div className="approval-actions">
+            <button className="btn btn-approve" onClick={() => onApprove(approvalMatch[1])}>
+              ✅ 批准
+            </button>
+            <button className="btn btn-reject" onClick={() => onReject(approvalMatch[1])}>
+              ❌ 拒绝
+            </button>
           </div>
-        )}
-      </div>
-      <div className="bubble-meta">
-        <span className="bubble-timestamp">{formatTime(timestamp)}</span>
-        {status === 'sending' && (
-          <span className="bubble-status bubble-status--sending"><span className="bubble-status-icon">⏳</span>发送中...</span>
-        )}
-        {status === 'failed' && (
-          <span className="bubble-status bubble-status--failed">
-            <span className="bubble-status-icon">❌</span>发送失败
-            {onRetry && <button className="bubble-retry" onClick={onRetry}>重试</button>}
-          </span>
-        )}
-        {role === 'assistant' && costInfo && status === 'sent' && (
-          <span className="bubble-cost" title={`模型: ${costInfo.model || 'unknown'}`}>
-            <span className="bubble-cost-icon">💰</span>
-            <span>{formatCost(costInfo.cost, costInfo.currency)}</span>
-            <span className="bubble-tokens">({formatTokens(costInfo.tokens.total)} tokens)</span>
-          </span>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Streaming indicator */}
+      {isStreaming && (
+        <div className="bubble-streaming">
+          <span className="streaming-dot"></span>
+          <span className="streaming-dot"></span>
+          <span className="streaming-dot"></span>
+        </div>
+      )}
     </div>
   );
 }
-
-export default ChatBubble;
