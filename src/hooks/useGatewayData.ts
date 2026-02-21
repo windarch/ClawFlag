@@ -540,6 +540,29 @@ export interface ToolCallInfo {
   status: 'running' | 'done' | 'error';
 }
 
+/**
+ * Extract text content from various message content formats.
+ * Anthropic API may return content as:
+ * - string: "hello"
+ * - array: [{type: "text", text: "hello"}, {type: "tool_use", ...}]
+ * - object: {type: "text", text: "hello"}
+ */
+function extractContent(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((block: Record<string, unknown>) => block && (block.type === 'text' || block.text))
+      .map((block: Record<string, unknown>) => String(block.text || ''))
+      .join('\n');
+  }
+  if (content && typeof content === 'object') {
+    const obj = content as Record<string, unknown>;
+    if (obj.text) return String(obj.text);
+    if (obj.content) return extractContent(obj.content);
+  }
+  return String(content || '');
+}
+
 export function useChat(sessionKey: string) {
   const { client, connected } = useGatewayContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -567,14 +590,14 @@ export function useChat(sessionKey: string) {
           if (existing) {
             return prev.map(m => m.id === ev.runId ? {
               ...m,
-              content: m.content + String(msg.text || msg.content || ''),
+              content: m.content + extractContent(msg.text || msg.content || ''),
               isStreaming: true,
             } : m);
           }
           return [...prev, {
             id: String(ev.runId),
             role: 'assistant' as const,
-            content: String(msg.text || msg.content || ''),
+            content: extractContent(msg.text || msg.content || ''),
             timestamp: new Date(),
             isStreaming: true,
           }];
@@ -620,7 +643,7 @@ export function useChat(sessionKey: string) {
         return {
           id: `h-${i}`,
           role: String(msg.role || 'assistant') as ChatMessage['role'],
-          content: String(msg.content || msg.text || ''),
+          content: extractContent(msg.content || msg.text || ''),
           timestamp: new Date(Number(msg.timestamp || Date.now())),
         };
       });
