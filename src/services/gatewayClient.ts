@@ -59,19 +59,31 @@ export interface GatewayError {
   message: string;
 }
 
-// ========== Device Auth Helpers ==========
+// ========== Device Auth Helpers (Ed25519 via WebCrypto) ==========
 
 const DB_NAME = 'clawflag-device';
 const DB_STORE = 'keys';
 
 interface DeviceKeys {
-  id: string;
-  publicKey: string;
+  id: string;           // sha256(raw_public_key) hex
+  publicKeyB64: string; // base64url of raw 32-byte Ed25519 public key
   privateKey: CryptoKey;
   deviceToken?: string;
 }
 
-async function openDB(): Promise<IDBDatabase> {
+function bufToBase64Url(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function sha256hex(data: ArrayBuffer): Promise<string> {
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
     req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
@@ -88,19 +100,17 @@ async function loadOrCreateDeviceKeys(): Promise<DeviceKeys> {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => resolve(undefined);
   });
-  if (existing?.privateKey) return existing;
+  if (existing?.privateKey) { db.close(); return existing; }
 
-  // Generate ECDSA P-256 keypair
-  const keyPair = await crypto.subtle.generateKey(
-    { name: 'ECDSA', namedCurve: 'P-256' },
-    false, // privateKey not extractable
-    ['sign', 'verify']
-  );
+  // Generate Ed25519 keypair
+  const keyPair = await crypto.subtle.generateKey('Ed25519', true, ['sign', 'verify']) as CryptoKeyPair;
+  // Export raw public key (32 bytes)
   const pubRaw = await crypto.subtle.exportKey('raw', keyPair.publicKey);
-  const pubHex = Array.from(new Uint8Array(pubRaw)).map(b => b.toString(16).padStart(2, '0')).join('');
-  const id = pubHex.slice(0, 32); // first 16 bytes as device ID
+  const publicKeyB64 = bufToBase64Url(pubRaw);
+  const id = await sha256hex(pubRaw);
 
-  const keys: DeviceKeys = { id, publicKey: pubHex, privateKey: keyPair.privateKey };
+  // Store with non-extractable private key (re-import)
+  const keys: DeviceKeys = { id, publicKeyB64, privateKey: keyPair.privateKey };
 
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(DB_STORE, 'readwrite');
@@ -129,14 +139,23 @@ async function saveDeviceToken(token: string) {
   db.close();
 }
 
-async function signNonce(privateKey: CryptoKey, nonce: string): Promise<string> {
+/** Build the payload string that must be signed (matches Gateway's buildDeviceAuthPayload) */
+function buildAuthPayload(params: {
+  deviceId: string; clientId: string; clientMode: string;
+  role: string; scopes: string[]; signedAtMs: number;
+  token: string; nonce: string;
+}): string {
+  return [
+    'v2', params.deviceId, params.clientId, params.clientMode,
+    params.role, params.scopes.join(','), String(params.signedAtMs),
+    params.token, params.nonce
+  ].join('|');
+}
+
+async function signPayload(privateKey: CryptoKey, payload: string): Promise<string> {
   const enc = new TextEncoder();
-  const sig = await crypto.subtle.sign(
-    { name: 'ECDSA', hash: 'SHA-256' },
-    privateKey,
-    enc.encode(nonce)
-  );
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const sig = await crypto.subtle.sign('Ed25519', privateKey, enc.encode(payload));
+  return bufToBase64Url(sig);
 }
 
 export class GatewayClient {
@@ -392,17 +411,28 @@ export class GatewayClient {
     if (this.opts.token) auth.token = this.opts.token;
     if (this.opts.password) auth.password = this.opts.password;
 
-    // Device auth: load or create keypair, sign nonce
+    const clientId = 'webchat-ui';
+    const clientMode = 'webchat';
+    const role = 'operator';
+    const scopes = ['operator.read', 'operator.write', 'operator.approvals'];
+
+    // Device auth: load or create Ed25519 keypair, sign payload
     let device: Record<string, unknown> | undefined;
     try {
       const keys = await loadOrCreateDeviceKeys();
       const nonce = this.challengeNonce || '';
       const signedAt = Date.now();
-      const signature = nonce ? await signNonce(keys.privateKey, nonce) : '';
+      const tokenStr = (this.opts.token || '') as string;
+
+      const payload = buildAuthPayload({
+        deviceId: keys.id, clientId, clientMode, role, scopes,
+        signedAtMs: signedAt, token: tokenStr, nonce,
+      });
+      const signature = await signPayload(keys.privateKey, payload);
 
       device = {
         id: keys.id,
-        publicKey: keys.publicKey,
+        publicKey: keys.publicKeyB64,
         signature,
         signedAt,
         nonce,
@@ -421,13 +451,13 @@ export class GatewayClient {
         minProtocol: 3,
         maxProtocol: 3,
         client: {
-          id: 'openclaw-control-ui',
+          id: clientId,
           version: '0.2.0',
           platform: navigator?.platform || 'web',
-          mode: 'ui',
+          mode: clientMode,
         },
-        role: 'operator',
-        scopes: ['operator.read', 'operator.write', 'operator.approvals'],
+        role,
+        scopes,
         auth: Object.keys(auth).length > 0 ? auth : undefined,
         device,
       });
