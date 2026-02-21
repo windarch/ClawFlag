@@ -1,0 +1,25 @@
+{
+  "name": "clawflag-agent",
+  "version": "0.1.0",
+  "description": "Bridge between OpenClaw Gateway and ClawFlag App via Relay Server",
+  "main": "dist/index.js",
+  "bin": {
+    "clawflag-agent": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "dev": "ts-node src/cli.ts"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^13.0.0",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.0",
+    "typescript": "^5.7.0"
+  }
+}
