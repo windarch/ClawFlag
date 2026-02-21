@@ -71,3 +71,13 @@
 .compact-btn:active {
   background: rgba(99, 102, 241, 0.15);
 }
+
+.compact-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.context-bar.compacted {
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  background: rgba(34, 197, 94, 0.04);
+}

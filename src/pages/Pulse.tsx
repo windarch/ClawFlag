@@ -2,10 +2,13 @@
  * Pulse 页面 - 概览与监控
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import GlanceView from '../components/GlanceView';
 import SecurityCheck from '../components/SecurityCheck';
+import SecurityBanner from '../components/SecurityBanner';
 import AgentStatsCard from '../components/AgentStatsCard';
+import SubAgentDAG from '../components/SubAgentDAG';
+import ContextMeter from '../components/ContextMeter';
 import EmptyState from '../components/EmptyState';
 import {
   useSessions,
@@ -42,6 +45,17 @@ export default function Pulse() {
     await refreshSessions();
   }, [sessions, cost, refreshSessions]);
 
+  // Aggregate context usage from all active sessions
+  const contextStats = useMemo(() => {
+    const activeSessions = sessions.filter(s => s.status === 'active');
+    if (activeSessions.length === 0) return { used: 0, total: 200000 };
+    const used = activeSessions.reduce((sum, s) => sum + s.inputTokens + s.outputTokens, 0);
+    // Estimate total from tokenUsage percentage
+    const primary = activeSessions[0];
+    const total = primary.tokenUsage > 0 ? Math.round((primary.inputTokens + primary.outputTokens) / (primary.tokenUsage / 100)) : 200000;
+    return { used, total };
+  }, [sessions]);
+
   const tabs: { id: PulseTab; label: string; icon: string }[] = [
     { id: 'overview', label: '概览', icon: '📊' },
     { id: 'sessions', label: '会话', icon: '💬' },
@@ -51,6 +65,9 @@ export default function Pulse() {
 
   return (
     <div className="page pulse-page">
+      {/* 安全横幅 - 固定顶部 */}
+      <SecurityBanner security={security} onRescan={rescan} />
+
       <div className="pulse-tabs">
         {tabs.map(tab => (
           <button key={tab.id} className={`pulse-tab ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
@@ -63,7 +80,16 @@ export default function Pulse() {
       <div className="pulse-content">
         {activeTab === 'overview' && (
           <div className="pulse-overview">
-            <GlanceView data={glanceData} onRefresh={refreshGlance} />
+            {/* 概览视图 + 上下文计量器 */}
+            <div className="overview-top">
+              <div className="overview-glance">
+                <GlanceView data={glanceData} onRefresh={refreshGlance} />
+              </div>
+              <div className="overview-meter">
+                <ContextMeter usedTokens={contextStats.used} totalTokens={contextStats.total} />
+              </div>
+            </div>
+
             <AgentStatsCard stats={{
               agentName: '龙虾',
               agentEmoji: '🦞',
@@ -84,6 +110,10 @@ export default function Pulse() {
               <h3>活跃会话</h3>
               <button className="btn btn-icon" onClick={() => refreshSessions()} title="刷新">🔄</button>
             </div>
+
+            {/* 子Agent DAG 可视化 */}
+            <SubAgentDAG sessions={sessions} />
+
             {sessions.length === 0 ? (
               <EmptyState icon="💬" title="暂无会话" description="Agent 还没有活跃会话" />
             ) : (

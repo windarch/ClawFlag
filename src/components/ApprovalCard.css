@@ -1,0 +1,102 @@
+.approval-card {
+  padding: 0.75rem;
+  border-radius: 10px;
+  margin: 0.5rem 0;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.approval-card.risk-critical { border-color: rgba(220, 38, 38, 0.3); background: rgba(220, 38, 38, 0.05); }
+.approval-card.risk-high { border-color: rgba(239, 68, 68, 0.25); background: rgba(239, 68, 68, 0.04); }
+.approval-card.risk-medium { border-color: rgba(249, 115, 22, 0.2); background: rgba(249, 115, 22, 0.04); }
+.approval-card.risk-low { border-color: rgba(234, 179, 8, 0.2); background: rgba(234, 179, 8, 0.04); }
+
+.approval-card.status-approved { opacity: 0.7; }
+.approval-card.status-rejected { opacity: 0.7; }
+.approval-card.status-timeout { opacity: 0.5; }
+
+.approval-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.approval-icon { font-size: 1rem; }
+.approval-risk { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+
+.approval-timer {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted, #6b6b80);
+  font-variant-numeric: tabular-nums;
+}
+
+.approval-timer.timer-urgent {
+  color: #ef4444;
+  animation: pulse-timer 1s infinite;
+}
+
+@keyframes pulse-timer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.approval-action {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary, #e0e0e8);
+  margin-bottom: 0.25rem;
+  font-family: 'SF Mono', monospace;
+}
+
+.approval-desc {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #a0a0b0);
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.approval-actions .btn {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-approve {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2) !important;
+}
+.btn-approve:active { background: rgba(34, 197, 94, 0.25); }
+
+.btn-reject {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
+}
+.btn-reject:active { background: rgba(239, 68, 68, 0.2); }
+
+.approval-result {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.approval-result.approved { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.approval-result.rejected { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.approval-result.timeout { background: rgba(234, 179, 8, 0.1); color: #eab308; }

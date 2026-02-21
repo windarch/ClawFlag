@@ -1,0 +1,12 @@
+.security-banner { border-radius: var(--radius-md); margin-bottom: var(--spacing-md); overflow: hidden; transition: var(--transition-fast); }
+.banner-critical { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4); }
+.banner-warn { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.4); }
+.banner-safe { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); }
+.banner-main { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) var(--spacing-md); cursor: pointer; min-height: 44px; }
+.banner-message { font-size: 0.85rem; font-weight: 600; color: var(--color-text-primary); }
+.banner-actions { display: flex; gap: var(--spacing-xs); }
+.banner-btn { background: none; border: none; cursor: pointer; font-size: 0.85rem; padding: 4px; min-width: 28px; min-height: 28px; border-radius: var(--radius-sm); }
+.banner-btn:hover { background: rgba(255,255,255,0.1); }
+.banner-details { padding: 0 var(--spacing-md) var(--spacing-sm); }
+.banner-detail-item { font-size: 0.78rem; color: var(--color-text-secondary); padding: 2px 0; }
+.security-banner.collapsed .banner-details { display: none; }

@@ -14,6 +14,8 @@ import { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import InspectPanel from './InspectPanel';
 import ToolCallCard from './ToolCallCard';
+import ApprovalCard, { detectApprovalRequest } from './ApprovalCard';
+import ProgressBar, { parseProgress } from './ProgressBar';
 import { formatTokens, getCostColor } from '../config/modelPricing';
 import './ChatBubble.css';
 
@@ -59,7 +61,13 @@ export default function ChatBubble({ message, onToolCallClick, onApprove, onReje
   const isSystem = message.role === 'system';
   const isStreaming = message.isStreaming;
 
-  // Process content: detect approval requests
+  // Process content: detect approval requests (enhanced - 任务 3.1)
+  const approvalRequest = useMemo(() => !isUser ? detectApprovalRequest(message.content) : null, [message.content, isUser]);
+
+  // Detect multi-step progress (任务 3.2)
+  const progressInfo = useMemo(() => !isUser ? parseProgress(message.content) : null, [message.content, isUser]);
+
+  // Legacy pattern compat
   const approvalMatch = message.content.match(/\[APPROVAL_REQUEST:(\w+)\](.*)/s);
   const hasApproval = approvalMatch && !isUser;
 
@@ -232,8 +240,22 @@ export default function ChatBubble({ message, onToolCallClick, onApprove, onReje
         />
       )}
 
-      {/* Inline Approval */}
-      {hasApproval && onApprove && onReject && (
+      {/* Enhanced Approval Card (任务 3.1) */}
+      {approvalRequest && (
+        <ApprovalCard
+          request={approvalRequest}
+          onApprove={(id) => onApprove?.(id)}
+          onReject={(id) => onReject?.(id)}
+        />
+      )}
+
+      {/* Multi-step Progress Bar (任务 3.2) */}
+      {progressInfo && (
+        <ProgressBar progress={progressInfo} />
+      )}
+
+      {/* Legacy Inline Approval */}
+      {hasApproval && !approvalRequest && onApprove && onReject && (
         <div className="bubble-approval">
           <p className="approval-desc">{approvalMatch[2]}</p>
           <div className="approval-actions">

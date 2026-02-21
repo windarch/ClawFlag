@@ -1,0 +1,5 @@
+.context-meter { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.context-meter svg { display: block; }
+.context-meter-detail { display: flex; align-items: baseline; gap: 2px; font-size: 0.7rem; color: var(--color-text-secondary); }
+.meter-used { font-weight: 600; color: var(--color-text-primary); }
+.meter-sep { opacity: 0.5; }

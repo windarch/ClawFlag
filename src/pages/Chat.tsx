@@ -10,12 +10,13 @@ import ChatBubble from '../components/ChatBubble';
 import ChatInput from '../components/ChatInput';
 import ToolCallModal from '../components/ToolCallModal';
 import ContextBar from '../components/ContextBar';
+import SummarizeButton from '../components/SummarizeButton';
 // SessionHistory removed - using inline session selector instead
 import EmptyState from '../components/EmptyState';
 import '../styles/pages.css';
 
 export default function Chat() {
-  const { connected } = useGatewayContext();
+  const { connected, client } = useGatewayContext();
   const { sessions } = useSessions();
   const [activeSession, setActiveSession] = useState('agent:main:main');
   const { messages, sending, send, abort, summarize, loading } = useChat(activeSession);
