@@ -1,91 +1,62 @@
-# ClawFlag 项目交接文档
-> 更新时间：2026-02-21 04:15 GMT+8
+# ClawFlag 会话交接文档
 
----
+> 写给 /new 后的自己。读完这个文件你就能无缝接上。
 
-## 🎯 项目概述
+## 你在做什么
 
-**ClawFlag** = 移动端 AI Agent 指挥中心（针对 OpenClaw 用户）
+ClawFlag — 移动端 AI Agent 指挥中心 PWA。已完成前端 UI + Gateway WS 集成，正在铁锤服务器上实机测试。
 
-- **PRD**：`~/clawd/projects/clawflag/PRD.md`
-- **GitHub**：https://github.com/windarch/ClawFlag
-- **在线预览**：https://claw-flag.vercel.app/
-- **本地**：`~/clawd/projects/clawflag`
+## 关键文件（必读）
 
----
+1. **`~/clawd/projects/clawflag/STATUS.md`** — 完整项目状态、已完成功能、E2E 测试结果、已知 bug、文件结构、下一步建议
+2. **`~/clawd/projects/clawflag/PRD.md`** — 产品需求文档
 
-## ✅ 已完成功能（PRD 全覆盖）
+## 部署信息
 
-### 基础设施
-- [x] GitHub + Vercel 自动部署
-- [x] Vite + React + TypeScript + PWA
-- [x] 深色主题 + PWA 图标 + Manifest
-
-### MVP（第1-2周）
-- [x] 四页面路由 + 底部导航
-- [x] Gateway WebSocket 连接（心跳/重连/指数退避）
-- [x] 概览视图（3秒看状态/开销/待审批）
-- [x] 对话功能（ChatBubble + ChatInput + Markdown + 成本标签）
-- [x] Gateway 安全检查（版本/暴露/认证/代理）
-- [x] 今日成本（趋势箭头 + 昨日对比 + 预算进度条）
-- [x] claw-audit CLI 工具
-
-### 增强（第3-4周）
-- [x] 成本顾问（2条规则 + 一键应用）
-- [x] SOUL.md 查看/编辑（L0-L1 分层）
-- [x] 技能列表 + 安全评分
-- [x] 会话历史列表
-- [x] Agent 统计社交卡片（Web Share API）
-
-### 完善
-- [x] 紧急停止按钮（两次确认 + 脉冲动画）
-- [x] 通知铃铛（下拉列表 + 未读徽章）
-- [x] 危险操作批准模态框（三级风险）
-- [x] 上下文压缩警告条 + 一键压缩
-- [x] 多步骤进度条（TaskProgress）
-- [x] 执行链路透视（ExecutionTrace）
-- [x] 错误状态处理 + 版本警告
-- [x] 空状态组件
-
----
-
-## ❌ 需要后端/基础设施（等 Raymond）
-
-- [ ] 真实 Gateway 数据接入（替换 mock）
-- [ ] Telegram Bot 推送备用通道
-- [ ] ClawRouter 模型路由配置（第2-3个月）
-- [ ] 成本异常检测
-- [ ] 记忆时间线浏览器
-- [ ] OpenRouter API 集成
-- [ ] Product Hunt 发布
-
----
-
-## 📂 组件清单（18个）
-
-| 组件 | 文件 | 功能 |
+| 环境 | 地址 | 方式 |
 |------|------|------|
-| GlanceView | components/ | 3秒概览 |
-| SecurityCheck | components/ | Gateway 安全检查 |
-| ChatBubble | components/ | 对话气泡 |
-| ChatInput | components/ | 消息输入 |
-| CostAdvisor | components/ | 成本顾问 |
-| SoulEditor | components/ | SOUL.md 编辑 |
-| SkillList | components/ | 技能列表 |
-| AgentStatsCard | components/ | 统计卡片 |
-| EmergencyStop | components/ | 紧急停止 |
-| NotificationBell | components/ | 通知铃铛 |
-| ApprovalModal | components/ | 批准模态框 |
-| ContextBar | components/ | 上下文压缩 |
-| TaskProgress | components/ | 多步进度条 |
-| ExecutionTrace | components/ | 执行链路 |
-| EmptyState | components/ | 空状态 |
-| SessionHistory | components/ | 会话历史 |
-| BottomNav | components/ | 底部导航 |
-| RequireConnection | components/ | 连接保护 |
+| 铁锤 nginx | http://REDACTED_SERVER_IP:8088 | 手动 scp dist/ |
+| Vercel | https://claw-flag.vercel.app/ | git push 自动 |
+| 本地 dev | http://localhost:5173/ | npm run dev |
 
-## 🔑 Git
+铁锤 Gateway: `ws://REDACTED_SERVER_IP:18789`，Token: `REDACTED_GATEWAY_TOKEN`
+
+## 当前进度
+
+### ✅ 已完成
+- 5 个页面 (Connect/Chat/Pulse/Brain/Router) + 30+ 组件
+- Gateway WS v3 协议客户端 + Ed25519 设备认证
+- Chat 页面已通 E2E：连接 ✅、chat.history ✅、消息正常显示 ✅
+- **content 数组格式 bug 已修复** — Gateway 返回 `[{type:"text",text:"..."}]`，已加 `extractContent()` 处理
+- **origin 问题已修复** — `allowedOrigins: ['*']` 不生效，已明确添加 origin
+- API 测试 8/10 通过 (scripts/e2e-api-test.cjs)
+
+### 🐛 待修复
+1. `sessions.preview` 参数格式：应传 `{keys: [sessionKey]}` 非 `{sessionKey}`
+2. `config.get` 参数格式需查正确格式
+3. Pulse/Brain/Router 页面需对接真实数据验证（可能也有 object 序列化问题）
+
+### 🚀 下一步
+1. 修复上面 2 个 API 参数 bug
+2. 各页面真实数据验证（特别是 Pulse 的 sessions、Brain 的 models、Router 的 channels）
+3. chat.send 发消息 + 流式响应测试
+4. 实时事件推送（新消息通知）
+5. 移动端 UX 打磨
+
+## 关键协议知识
+
+- Gateway 用 **Ed25519**（不是 P-256）
+- client ID 用 `webchat-ui`（避免 `openclaw-control-ui` 的 origin 限制）
+- `chat.history` 的 content 是 **Anthropic 数组格式**，不是 string
+- `dangerouslyDisableDeviceAuth: true` 在铁锤已开启
+- `allowedOrigins: ['*']` 新版无效，必须明确列 origin
+
+## 部署命令
 
 ```bash
-cd ~/clawd/projects/clawflag && git log --oneline
+cd ~/clawd/projects/clawflag
+npm run build
+tar -czf /tmp/clawflag-dist.tar.gz -C dist .
+scp /tmp/clawflag-dist.tar.gz root@REDACTED_SERVER_IP:/tmp/
+ssh root@REDACTED_SERVER_IP "tar -xzf /tmp/clawflag-dist.tar.gz -C /var/www/clawflag/"
 ```

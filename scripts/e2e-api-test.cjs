@@ -139,15 +139,15 @@ async function run() {
   // 9. Sessions preview
   if (sessionKey) {
     await test('sessions.preview', async () => {
-      const res = await req('sessions.preview', { sessionKey });
-      return `key=${res.sessionKey || sessionKey}`;
+      const res = await req('sessions.preview', { keys: [sessionKey] });
+      return `previews=${res.previews?.length || 0}`;
     });
   }
 
   // 10. Config get
   await test('config.get', async () => {
-    const res = await req('config.get', { path: 'gateway' });
-    return `bind=${res.value?.bind || res.bind || 'unknown'}`;
+    const res = await req('config.get', {});
+    return `exists=${res.exists}, hasRaw=${!!res.raw}`;
   });
 
   // Summary
