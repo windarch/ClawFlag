@@ -208,21 +208,28 @@ export function useSessions() {
     setLoading(true);
     try {
       const result = await client.sessionsList({ activeMinutes: 1440, includeDerivedTitles: true, includeLastMessage: true });
-      const mapped: SessionInfo[] = ((result.sessions || []) as Record<string, unknown>[]).map((s, i) => ({
-        id: String(s.sessionId || s.key || `s-${i}`),
-        key: String(s.key || ''),
-        label: String(s.label || s.key || ''),
-        model: String(s.model || 'unknown'),
-        kind: (String(s.kind || 'unknown') as SessionInfo['kind']),
-        tokenUsage: Number(s.contextPercent || 0),
-        inputTokens: Number(s.inputTokens || 0),
-        outputTokens: Number(s.outputTokens || 0),
-        cost: Number(s.cost || 0),
-        status: s.active ? 'active' : 'idle' as const,
-        lastActive: new Date(Number(s.updatedAtMs || s.createdAtMs || Date.now())),
-        messageCount: Number(s.messageCount || 0),
-        agentId: s.agentId ? String(s.agentId) : undefined,
-      }));
+      const mapped: SessionInfo[] = ((result.sessions || []) as Record<string, unknown>[]).map((s, i) => {
+        const totalTokens = Number(s.totalTokens || 0);
+        const contextTokens = Number(s.contextTokens || 200000);
+        const tokenUsage = contextTokens > 0 ? Math.round((totalTokens / contextTokens) * 100) : 0;
+        const updatedAt = Number(s.updatedAt || s.updatedAtMs || 0);
+        const isActive = updatedAt > Date.now() - 5 * 60 * 1000;
+        return {
+          id: String(s.sessionId || s.key || `s-${i}`),
+          key: String(s.key || ''),
+          label: String(s.displayName || s.derivedTitle || s.label || s.key || ''),
+          model: String(s.model || 'unknown'),
+          kind: (String(s.kind || 'unknown') as SessionInfo['kind']),
+          tokenUsage,
+          inputTokens: Number(s.inputTokens || Math.round(totalTokens * 0.7)),
+          outputTokens: Number(s.outputTokens || Math.round(totalTokens * 0.3)),
+          cost: Number(s.cost || 0),
+          status: isActive ? 'active' as const : 'idle' as const,
+          lastActive: new Date(updatedAt || Date.now()),
+          messageCount: Number(s.messageCount || (s.systemSent ? 1 : 0)),
+          agentId: s.agentId ? String(s.agentId) : undefined,
+        };
+      });
       setSessions(mapped.length > 0 ? mapped : MOCK_SESSIONS);
       setIsReal(mapped.length > 0);
     } catch {
@@ -253,10 +260,25 @@ export function useCostData() {
         client.sessionsUsage({ startDate: today, endDate: today }),
         client.sessionsUsage({ startDate: yesterday, endDate: yesterday }),
       ]);
-      const tu = todayUsage as Record<string, unknown>;
-      const yu = yesterdayUsage as Record<string, unknown>;
-      const todayCost = Number(tu.totalCost || tu.cost || 0);
-      const yesterdayCost = Number(yu.totalCost || yu.cost || 0);
+      // sessions.usage returns {sessions: [{usage: {totalTokens, inputTokens, outputTokens, ...}}]}
+      const extractTokens = (data: unknown) => {
+        const d = data as Record<string, unknown>;
+        const sessions = (d.sessions || []) as Record<string, unknown>[];
+        let totalInput = 0, totalOutput = 0;
+        for (const s of sessions) {
+          const usage = s.usage as Record<string, number> || {};
+          totalInput += usage.inputTokens || 0;
+          totalOutput += usage.outputTokens || 0;
+        }
+        return { totalInput, totalOutput, total: totalInput + totalOutput };
+      };
+      const todayTokens = extractTokens(todayUsage);
+      const yesterdayTokens = extractTokens(yesterdayUsage);
+      // Estimate cost: ~$15/M input, ~$75/M output for Opus (rough)
+      const estimateCost = (t: { totalInput: number; totalOutput: number }) =>
+        (t.totalInput / 1_000_000) * 15 + (t.totalOutput / 1_000_000) * 75;
+      const todayCost = estimateCost(todayTokens);
+      const yesterdayCost = estimateCost(yesterdayTokens);
       const trend = todayCost > yesterdayCost ? 'up' : todayCost < yesterdayCost ? 'down' : 'stable';
       const trendPercent = yesterdayCost > 0 ? Math.round(((todayCost - yesterdayCost) / yesterdayCost) * 100) : 0;
 
