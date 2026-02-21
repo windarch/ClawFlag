@@ -414,7 +414,7 @@ export class GatewayClient {
     const clientId = 'webchat-ui';
     const clientMode = 'webchat';
     const role = 'operator';
-    const scopes = ['operator.read', 'operator.write', 'operator.approvals'];
+    const scopes = ['operator.read', 'operator.write', 'operator.admin', 'operator.approvals'];
 
     // Device auth: load or create Ed25519 keypair, sign payload
     let device: Record<string, unknown> | undefined;
