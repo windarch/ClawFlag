@@ -5,7 +5,9 @@
 import { useState, useCallback } from 'react';
 import CostAdvisor from '../components/CostAdvisor';
 import type { CostAdvice } from '../components/CostAdvisor';
+import CostFuse from '../components/CostFuse';
 import { useModelRoutes, useCostData, useCronJobs } from '../hooks/useGatewayData';
+import { useCostContext } from '../contexts/CostContext';
 import EmptyState from '../components/EmptyState';
 import '../styles/pages.css';
 
@@ -43,6 +45,7 @@ export default function Router() {
   const { routeData, loading: routesLoading } = useModelRoutes();
   const { cost } = useCostData();
   const { } = useCronJobs();
+  const _costCtx = useCostContext(); void _costCtx;
   const [advices, setAdvices] = useState<CostAdvice[]>(() => generateAdvices(cost));
   const [editingBudget, setEditingBudget] = useState(false);
   const [dailyBudget, setDailyBudget] = useState(cost.dailyBudget);
@@ -177,12 +180,7 @@ export default function Router() {
             ) : (
               <button className="btn btn-primary" onClick={() => setEditingBudget(true)}>✏️ 编辑预算</button>
             )}
-            <div className="breaker-levels" style={{ marginTop: '1.5rem' }}>
-              <h3>三层成本熔断器</h3>
-              <div className={`breaker-level ${cost.todayCost / dailyBudget > 0.7 ? 'active' : ''}`}><span className="level-icon">⚠️</span><div><strong>警告层 (70%)</strong><p>黄色警报 + 推送通知</p></div></div>
-              <div className={`breaker-level ${cost.todayCost / dailyBudget > 0.9 ? 'active' : ''}`}><span className="level-icon">🔻</span><div><strong>降级层 (90%)</strong><p>自动切换到更便宜的模型</p></div></div>
-              <div className={`breaker-level ${cost.todayCost / dailyBudget >= 1 ? 'active' : ''}`}><span className="level-icon">🛑</span><div><strong>熔断层 (100%)</strong><p>暂停所有非手动会话</p></div></div>
-            </div>
+            <CostFuse />
           </div>
         )}
       </div>

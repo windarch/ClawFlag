@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { GatewayProvider } from './contexts/GatewayContext';
 import { AppProvider, useAppContext } from './contexts/AppContext';
+import { CostProvider } from './contexts/CostContext';
 import { RequireConnection } from './components/RequireConnection';
 import BottomNav from './components/BottomNav';
 import EmergencyStop from './components/EmergencyStop';
@@ -66,6 +67,7 @@ export default function App() {
   return (
     <GatewayProvider>
       <AppProvider>
+        <CostProvider>
         <Routes>
           <Route path="/connect" element={<Connect />} />
           <Route path="/*" element={
@@ -74,6 +76,7 @@ export default function App() {
             </RequireConnection>
           } />
         </Routes>
+        </CostProvider>
       </AppProvider>
     </GatewayProvider>
   );

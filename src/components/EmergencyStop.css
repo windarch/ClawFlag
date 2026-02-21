@@ -1,41 +1,185 @@
-.emergency-stop-btn {
+/* Emergency Stop FAB */
+.emergency-stop-fab {
   position: fixed;
-  bottom: 80px;
+  bottom: calc(var(--nav-height) + var(--safe-area-bottom) + 16px);
   right: 16px;
-  z-index: 1000;
-  padding: 0.6rem 1rem;
-  border-radius: 999px;
-  border: 2px solid rgba(239, 68, 68, 0.4);
-  background: rgba(239, 68, 68, 0.15);
+  z-index: 9999;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 1.4rem;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.3s;
-  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.2);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.emergency-stop-btn:active:not(:disabled) {
-  transform: scale(0.95);
+.emergency-stop-fab:active:not(:disabled) {
+  transform: scale(0.9);
 }
 
-.emergency-stop-btn.confirming {
+/* Agent active: breathing pulse */
+.emergency-stop-fab.agent-active {
+  animation: emergency-breathe 2s ease-in-out infinite;
+}
+
+@keyframes emergency-breathe {
+  0%, 100% {
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+    border-color: rgba(239, 68, 68, 0.6);
+  }
+  50% {
+    box-shadow: 0 4px 32px rgba(239, 68, 68, 0.6), 0 0 48px rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 1);
+  }
+}
+
+/* Confirming state */
+.emergency-stop-fab.confirming {
+  background: rgba(239, 68, 68, 0.4);
+  border-color: #ef4444;
+  animation: emergency-pulse 0.6s infinite;
+}
+
+@keyframes emergency-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* Stopping state */
+.emergency-stop-fab.stopping {
   background: rgba(239, 68, 68, 0.3);
-  border-color: rgba(239, 68, 68, 0.7);
-  animation: pulse-red 1s infinite;
-  box-shadow: 0 2px 20px rgba(239, 68, 68, 0.4);
+  border-color: rgba(239, 68, 68, 0.8);
+  cursor: wait;
 }
 
-.emergency-stop-btn.stopped {
-  background: rgba(107, 114, 128, 0.15);
+/* Stopped state */
+.emergency-stop-fab.stopped {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #22c55e;
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.2);
+}
+
+/* Disconnected */
+.emergency-stop-fab.disconnected {
+  opacity: 0.4;
   border-color: rgba(107, 114, 128, 0.3);
-  color: #9ca3af;
-  cursor: default;
+  background: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+  animation: none;
 }
 
-@keyframes pulse-red {
-  0%, 100% { box-shadow: 0 2px 12px rgba(239, 68, 68, 0.3); }
-  50% { box-shadow: 0 2px 24px rgba(239, 68, 68, 0.6); }
+.emergency-icon {
+  line-height: 1;
+}
+
+.emergency-icon.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Status label */
+.emergency-status-label {
+  position: fixed;
+  bottom: calc(var(--nav-height) + var(--safe-area-bottom) + 78px);
+  right: 8px;
+  z-index: 9999;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+
+/* Confirm overlay */
+.emergency-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.emergency-confirm-dialog {
+  background: var(--color-bg-secondary, #16213e);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-lg, 16px);
+  padding: var(--spacing-lg, 24px);
+  max-width: 320px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.emergency-confirm-icon {
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-sm, 8px);
+}
+
+.emergency-confirm-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #eaeaea);
+  margin-bottom: var(--spacing-xs, 4px);
+}
+
+.emergency-confirm-desc {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary, #a0a0a0);
+  margin-bottom: var(--spacing-lg, 24px);
+}
+
+.emergency-confirm-actions {
+  display: flex;
+  gap: var(--spacing-sm, 8px);
+}
+
+.emergency-confirm-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius-sm, 8px);
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast, 150ms ease);
+}
+
+.emergency-confirm-btn.cancel {
+  background: var(--color-bg-tertiary, #0f3460);
+  color: var(--color-text-secondary, #a0a0a0);
+}
+
+.emergency-confirm-btn.confirm {
+  background: #ef4444;
+  color: white;
+}
+
+.emergency-confirm-btn.confirm:active {
+  background: #dc2626;
+  transform: scale(0.97);
 }

@@ -350,6 +350,41 @@ export class GatewayClient {
     return this.request<{ lines: string[]; cursor: number }>('logs.tail', opts ?? {});
   }
 
+  /**
+   * Emergency Stop - 紧急停止所有活跃 Agent
+   * 高优先级：不排队、立即发送、1秒超时自动重试
+   */
+  async sendEmergencyStop(maxRetries = 3): Promise<boolean> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Get active sessions
+        const result = await Promise.race([
+          this.sessionsList({ activeMinutes: 60 }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
+        ]);
+        const sessions = ((result as { sessions: unknown[] }).sessions || []) as Record<string, unknown>[];
+        // Abort all simultaneously
+        await Promise.allSettled(
+          sessions.map(s => {
+            const key = String(s.key || '');
+            if (!key) return Promise.resolve();
+            return Promise.race([
+              this.chatAbort(key),
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000)),
+            ]);
+          })
+        );
+        return true;
+      } catch {
+        if (attempt < maxRetries - 1) {
+          await new Promise(r => setTimeout(r, 200));
+          continue;
+        }
+      }
+    }
+    return false;
+  }
+
   // ========== Internal ==========
 
   private connect() {

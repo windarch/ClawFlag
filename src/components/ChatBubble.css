@@ -51,9 +51,26 @@
 .approval-desc { margin: 0 0 var(--spacing-sm); font-size: 0.85rem; }
 .approval-actions { display: flex; gap: var(--spacing-sm); }
 
+/* Inline tool cards */
+.bubble-tools-inline { display: flex; flex-direction: column; gap: var(--spacing-xs); margin-top: var(--spacing-sm); }
+
+/* Inspect button */
+.bubble-inspect-btn { display: inline-flex; align-items: center; gap: 4px; margin-top: var(--spacing-sm); padding: 3px 10px; border: 1px solid var(--color-border); border-radius: 12px; background: transparent; color: var(--color-text-muted); font-size: 0.72rem; cursor: pointer; transition: var(--transition-fast); }
+.bubble-inspect-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
 /* Streaming dots */
 .bubble-streaming { display: flex; gap: 4px; padding: var(--spacing-xs) 0; }
 .streaming-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); animation: streaming-pulse 1.2s ease-in-out infinite; }
 .streaming-dot:nth-child(2) { animation-delay: 0.2s; }
 .streaming-dot:nth-child(3) { animation-delay: 0.4s; }
 @keyframes streaming-pulse { 0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
+
+/* Cost label */
+.bubble-cost-label { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; margin-top: 6px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; transition: background 0.2s; }
+.bubble-cost-label:hover { filter: brightness(1.2); }
+.bubble-cost-label.cost-low { color: var(--color-text-secondary); background: transparent; }
+.bubble-cost-label.cost-medium { color: #f0ad4e; background: rgba(240,173,78,0.08); }
+.bubble-cost-label.cost-high { color: #f44336; background: rgba(244,67,54,0.08); }
+.cost-expand-icon { font-size: 0.65rem; opacity: 0.6; }
+.bubble-cost-detail { padding: 6px 8px; margin-top: 2px; border-radius: 6px; background: var(--color-bg-tertiary, rgba(255,255,255,0.04)); font-size: 0.72rem; }
+.cost-detail-row { display: flex; justify-content: space-between; padding: 2px 0; opacity: 0.8; }

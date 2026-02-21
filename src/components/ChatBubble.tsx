@@ -12,6 +12,9 @@
 
 import { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
+import InspectPanel from './InspectPanel';
+import ToolCallCard from './ToolCallCard';
+import { formatTokens, getCostColor } from '../config/modelPricing';
 import './ChatBubble.css';
 
 interface ToolCallDisplay {
@@ -49,6 +52,8 @@ const DIFF_PATTERN = /^(---|\+\+\+|@@|diff --git)/m;
 
 export default function ChatBubble({ message, onToolCallClick, onApprove, onReject }: ChatBubbleProps) {
   const [collapsedBlocks, setCollapsedBlocks] = useState<Set<number>>(new Set());
+  const [inspecting, setInspecting] = useState(false);
+  const [showCostDetail, setShowCostDetail] = useState(false);
 
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
@@ -187,25 +192,44 @@ export default function ChatBubble({ message, onToolCallClick, onApprove, onReje
         })}
       </div>
 
-      {/* Tool Calls */}
+      {/* Tool Calls - inline cards */}
       {message.toolCalls && message.toolCalls.length > 0 && (
-        <div className="bubble-tools">
+        <div className="bubble-tools-inline">
           {message.toolCalls.map(tc => (
-            <button
+            <ToolCallCard
               key={tc.id}
-              className={`tool-call-card ${tc.status}`}
+              name={tc.name}
+              args={tc.args}
+              result={tc.result}
+              duration={tc.duration}
+              status={tc.status}
               onClick={() => onToolCallClick?.(tc)}
-            >
-              <span className="tool-icon">
-                {tc.status === 'running' ? '⏳' : tc.status === 'error' ? '❌' : '🔧'}
-              </span>
-              <span className="tool-name">{tc.name}</span>
-              {tc.duration != null && (
-                <span className="tool-duration">{(tc.duration / 1000).toFixed(1)}s</span>
-              )}
-            </button>
+            />
           ))}
         </div>
+      )}
+
+      {/* Inspect button - only for assistant messages */}
+      {!isUser && !isSystem && (message.toolCalls?.length || message.tokens) && (
+        <button className="bubble-inspect-btn" onClick={() => setInspecting(!inspecting)}>
+          {inspecting ? '收起' : '🔍 探查'}
+        </button>
+      )}
+
+      {/* Inspect Panel */}
+      {inspecting && !isUser && !isSystem && (
+        <InspectPanel
+          toolCalls={message.toolCalls?.map(tc => ({
+            id: tc.id,
+            name: tc.name,
+            input: tc.args,
+            output: tc.result,
+            duration: tc.duration,
+            status: tc.status,
+          }))}
+          tokens={message.tokens}
+          cost={message.cost}
+        />
       )}
 
       {/* Inline Approval */}
@@ -220,6 +244,26 @@ export default function ChatBubble({ message, onToolCallClick, onApprove, onReje
               ❌ 拒绝
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Cost label */}
+      {!isUser && message.tokens && message.cost != null && (
+        <div
+          className={`bubble-cost-label cost-${getCostColor(message.cost)}`}
+          onClick={() => setShowCostDetail(!showCostDetail)}
+        >
+          <span>⚡ {formatTokens(message.tokens.input + message.tokens.output)} tokens · ¥{message.cost.toFixed(message.cost < 0.01 ? 4 : 2)}</span>
+          <span className="cost-expand-icon">{showCostDetail ? '▴' : '▾'}</span>
+        </div>
+      )}
+      {showCostDetail && message.tokens && (
+        <div className="bubble-cost-detail">
+          <div className="cost-detail-row"><span>输入</span><span>{formatTokens(message.tokens.input)} tokens</span></div>
+          <div className="cost-detail-row"><span>输出</span><span>{formatTokens(message.tokens.output)} tokens</span></div>
+          {(message.tokens as Record<string, number>).cache > 0 && (
+            <div className="cost-detail-row"><span>缓存</span><span>{formatTokens((message.tokens as Record<string, number>).cache)} tokens</span></div>
+          )}
         </div>
       )}
 
