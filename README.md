@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v4.0.0--beta.1-blue" />
+  <img src="https://img.shields.io/badge/version-v5.0.0--beta.1-blue" />
   <img src="https://img.shields.io/badge/react-19-61dafb" />
   <img src="https://img.shields.io/badge/PWA-installable-brightgreen" />
   <img src="https://img.shields.io/badge/license-MIT-yellow" />
@@ -28,7 +28,7 @@
 > *"See your AI. Control it from your fingertips."*
 > 洞察你的 AI，掌控于指尖。
 
-AI safety requires human-in-the-loop. Human-in-the-loop requires mobile convenience. ClawFlag bridges that gap — a PWA that turns your phone into a full command center for your [OpenClaw](https://github.com/openclaw/openclaw) Gateway.
+AI safety requires human-in-the-loop. Human-in-the-loop requires mobile convenience. ClawFlag V5 bridges that gap — a PWA that securely connects to your [OpenClaw](https://github.com/openclaw/openclaw) Gateway through an **E2EE Relay Server**, turning your phone into a mobile command center without exposing your Gateway to the public internet.
 
 <!-- Screenshots -->
 <p align="center">
@@ -43,14 +43,27 @@ AI safety requires human-in-the-loop. Human-in-the-loop requires mobile convenie
 
 ## Quick Start
 
+### V5 Relay Mode (Recommended)
+
 ```
 1. Visit   → https://claw-flag.vercel.app/
 2. Install → "Add to Home Screen" (PWA)
-3. Connect → Enter Gateway address (IP:port) + Token
-4. Done    → You're in control 🎯
+3. Pair    → App generates a 6-digit pairing token
+4. Agent   → On your Gateway machine, run:
+             npx clawflag-agent --token <pairing-code>
+5. Done    → E2EE tunnel established, you're in control 🎯
 ```
 
-No account. No cloud. Your Gateway, your data.
+No public IP needed. No port forwarding. End-to-end encrypted.
+
+### Advanced: Direct Connection (Legacy)
+
+```
+1. Visit   → https://claw-flag.vercel.app/
+2. Connect → Enter Gateway address (IP:port) + Token
+```
+
+Direct mode requires Gateway to be network-reachable from your phone.
 
 ---
 
@@ -100,11 +113,12 @@ Cost control and model management.
 
 ### 🔗 Connect — 连接
 
-Secure device pairing.
+Secure device pairing via Relay.
 
-- Gateway connection configuration
+- **V5 Relay pairing**: Token-based one-tap pairing, no IP/port needed
+- E2EE tunnel setup (ECDH + AES-256-GCM)
 - Ed25519 device authentication (WebCrypto)
-- Pairing wait UI with auto-reconnect
+- Legacy direct connection mode for advanced users
 
 ---
 
@@ -121,41 +135,45 @@ Secure device pairing.
 │              WebSocket Protocol v3                   │
 └──────────────────────┬──────────────────────────────┘
                        │
-          ┌────────────┼────────────┐
-          │ Direct     │            │ V5 Relay (planned)
-          │            │            │
-          ▼            │            ▼
-   ┌──────────┐       │     ┌─────────────┐
-   │ OpenClaw │       │     │Relay Server │
-   │ Gateway  │       │     │(blind pipe) │
-   └──────────┘       │     └──────┬──────┘
-                      │            │ E2EE
-                      │     ┌──────┴──────┐
-                      │     │clawflag-agent│
-                      │     └──────┬──────┘
-                      │            │
-                      └────────────┘
-                         Gateway
+          ┌────────────┼────────────────┐
+          │ V5 Relay   │                │ Direct (Legacy)
+          │ (default)  │                │
+          ▼            │                ▼
+   ┌─────────────┐    │         ┌──────────┐
+   │Relay Server │    │         │ OpenClaw │
+   │(blind pipe) │    │         │ Gateway  │
+   └──────┬──────┘    │         └──────────┘
+          │ E2EE      │
+   ┌──────┴──────┐    │
+   │clawflag-agent│    │
+   └──────┬──────┘    │
+          │ local     │
+   ┌──────┴──────┐    │
+   │  OpenClaw   │    │
+   │  Gateway    │    │
+   └─────────────┘    │
+                      │
 ```
 
-**Current (v4):** Direct WebSocket connection to Gateway.
-**Planned (V5):** Relay Server with end-to-end encryption — Gateway never needs public exposure.
+**V5 (default):** App → Relay Server → clawflag-agent → Gateway. Full E2EE, Gateway stays behind firewall.
+**Legacy:** Direct WebSocket connection to Gateway (requires network access).
 
 ---
 
 ## Security Model
 
-ClawFlag is built on a **zero-cloud-storage（零云存储）** principle:
+ClawFlag V5 is built on **E2EE + Zero-Cloud-Storage（端到端加密 + 零云存储）**:
 
 | Layer | Protection |
 |-------|-----------|
-| **Data Sovereignty** | All data stays on YOUR Gateway. ClawFlag stores nothing in the cloud. |
-| **Transport** | WSS (TLS) + Token authentication |
+| **E2EE** | ECDH key exchange + AES-256-GCM — Relay sees only ciphertext |
+| **Blind Pipe（盲管道）** | Relay Server forwards encrypted bytes without decryption capability |
+| **Data Sovereignty** | All data stays on YOUR Gateway. Nothing stored in cloud. |
 | **Device Auth** | Ed25519 key pairs generated locally via WebCrypto |
-| **Local Storage** | Only connection config cached in browser localStorage |
+| **Token Pairing** | 6-digit code pairs App ↔ Agent, no IP/port exchange needed |
 | **Gateway Audit** | Built-in security scanner (version, auth, network, TLS) |
 
-### V5 E2EE Architecture (In Development)
+### E2EE Architecture
 
 ```
 Phone ←──ECDH+AES-256-GCM──→ clawflag-agent ←──local──→ Gateway
@@ -168,6 +186,7 @@ Phone ←──ECDH+AES-256-GCM──→ clawflag-agent ←──local──→ 
 - **ECDH key exchange** + AES-256-GCM end-to-end encryption
 - No direct Gateway exposure required
 - `clawflag-agent`: npm global package running on Gateway host
+- Legacy direct mode available for advanced users
 
 ---
 
@@ -221,8 +240,9 @@ packages/
 - [x] Ed25519 device auth
 - [x] Cost circuit breaker (3-tier)
 - [x] Gateway security audit
-- [ ] V5 Relay Server (E2EE blind pipe)
-- [ ] `clawflag-agent` npm package
+- [x] V5 Relay Server (E2EE blind pipe)
+- [x] `clawflag-agent` npm package
+- [x] E2EE (ECDH + AES-256-GCM)
 - [ ] Multi-gateway management
 - [ ] Push notifications via Relay
 - [ ] Localization (i18n)
